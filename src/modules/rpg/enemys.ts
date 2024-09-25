@@ -1037,7 +1037,7 @@ export const enemys: Enemy[] = [
     limit: (data, friend) =>
       (data.winCount ?? 0) >= 15 &&
       ((friend.love ?? 0) >= 500 ||
-        data.lv > 255 ||
+        (data.lv > 255 && data.info === 3) ||
         aggregateTokensEffects(data).appearStrongBoss) &&
       !data.clearHistory.includes(':aine_youshou:') &&
       data.clearHistory.includes(':aine_oko:'),
@@ -1056,11 +1056,11 @@ export const enemys: Enemy[] = [
     losemsg: '阨ちゃんは悲しくて逃げ出してしまった…',
     endingmsg:
       'aine_youshou:の大人げない本気の暴言にも負けずに追い返す事が出来た！',
-    atk: 20,
-    def: 20,
+    atk: 18,
+    def: 18,
     maxdmg: 0.8,
-    atkx: 10,
-    defx: 10,
+    atkx: 9,
+    defx: 9,
     abort: 0.08,
   },
   {

@@ -100,7 +100,7 @@ export default class extends Module {
       });
 
       chart = {
-        title: `皆尽村の投稿数`,
+        title: `${config.instanceName}の投稿数`,
         datasets: [
           {
             data: data.local.diffs.normal,
@@ -129,7 +129,7 @@ export default class extends Module {
       const data = { ...dataA, ...dataU };
 
       chart = {
-        title: `皆尽村のユーザ数`,
+        title: `${config.instanceName}のユーザ数`,
         datasets: [
           {
             data: data.readWrite,

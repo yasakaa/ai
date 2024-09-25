@@ -26,6 +26,7 @@ import {
   ShopItem,
   TokenItem,
 } from './shop';
+import config from '@/config';
 
 export const skillPrice = (
   _ai: 藍,
@@ -190,7 +191,7 @@ export const shop2Items: ShopItem[] = [
       (data.maxSpd ?? 0) < 5 &&
       !data.items.filter((x) => x.name === '行動加速のお札').length,
     price: (data) => 370 - (data.maxSpd ?? 0) * 70,
-    desc: `持っていると阨ちゃんの懐き度に関係なく最低5回行動できるようになる`,
+    desc: `持っていると${config.rpgHeroName}の懐き度に関係なく最低5回行動できるようになる`,
     type: 'token',
     effect: { fivespd: true },
     always: true,
@@ -199,7 +200,7 @@ export const shop2Items: ShopItem[] = [
     name: `究極のお守り`,
     limit: (data) => enhanceCount(data) >= 9,
     price: 18,
-    desc: `阨ちゃんRPGを極めたあなたに……`,
+    desc: `${config.rpgHeroName}RPGを極めたあなたに……`,
     type: 'amulet',
     effect: ultimateEffect,
     durability: 6,
@@ -431,7 +432,7 @@ export const shop2Items: ShopItem[] = [
     name: `浄化の水晶`,
     limit: (data) => data.skills.filter((x) => x.cantReroll).length,
     price: 50,
-    desc: `阨ちゃんが持っている変更不可のスキルを変更可能なスキルに置き換えます ただしステータスが変動する可能性があります`,
+    desc: `${config.rpgHeroName}が持っている変更不可のスキルを変更可能なスキルに置き換えます ただしステータスが変動する可能性があります`,
     type: 'item',
     effect: resetCantRerollSkill,
     always: true,
@@ -627,7 +628,7 @@ export const shop2Items: ShopItem[] = [
     always: true,
   },
   {
-    name: 'キレイなどんぐり(70枚)',
+    name: `${config.rpgCoinName}(70個)`,
     limit: (data) =>
       (data.atkMedal ?? 0) + (data.defMedal ?? 0) + (data.itemMedal ?? 0) >= 30,
     desc: 'ショップでのアイテム購入などに使用できる通貨です',

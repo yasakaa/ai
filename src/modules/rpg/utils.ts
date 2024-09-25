@@ -5,6 +5,7 @@ import serifs from '@/serifs';
 import rpg from './index';
 import { colorReply, colors } from './colors';
 import { aggregateTokensEffects, shopItems } from './shop';
+import config from '@/config';
 
 export function initializeData(module: rpg, msg) {
   const data = msg.friend.getPerModulesData(module);
@@ -209,13 +210,17 @@ export async function getPostCount(
   msg,
   bonus = 0,
 ): Promise<number> {
+  let chart;
   // ユーザの投稿数を取得
-  const chart = await ai.api('charts/user/notes', {
-    span: 'day',
-    limit: 2,
-    userId: msg.userId,
-    addInfo: true,
-  });
+  if (config.forceRemoteChartPostCount) {
+    // ユーザの投稿数を取得
+    chart = await ai.api('charts/user/notes', {
+      span: 'day',
+      limit: 2,
+      userId: msg.userId,
+      addInfo: true,
+    });
+  }
 
   // チャートがない場合
   if (!chart?.diffs) {
@@ -280,12 +285,15 @@ export async function getPostCount(
         if (!friend || !friend.doc?.linkedAccounts?.includes(msg.friend.userId))
           continue;
 
-        // ユーザの投稿数を取得
-        const chart = await ai.api('charts/user/notes', {
-          span: 'day',
-          limit: 2,
-          userId: userId,
-        });
+        let chart;
+        if (!friend.doc?.user.host || config.forceRemoteChartPostCount) {
+          // ユーザの投稿数を取得
+          chart = await ai.api('charts/user/notes', {
+            span: 'day',
+            limit: 2,
+            userId: userId,
+          });
+        }
 
         postCount += Math.max(
           (chart.diffs.normal?.[0] ?? 0) +
@@ -297,7 +305,7 @@ export async function getPostCount(
         );
       }
     }
-    if (chart.add) {
+    if (chart?.add) {
       const userstats = chart.add.filter(
         (x) => !msg.friend.doc.linkedAccounts?.includes(x.id),
       );

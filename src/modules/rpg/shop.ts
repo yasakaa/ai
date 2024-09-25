@@ -18,6 +18,7 @@ import { getVal, initializeData, deepClone, numberCharConvert } from './utils';
 import { shop2Items } from './shop2';
 import 藍 from '@/ai';
 import rpg from './index';
+import config from '@/config';
 
 export type ItemType = 'token' | 'item' | 'amulet';
 
@@ -147,7 +148,7 @@ export const shopItems: ShopItem[] = [
       !data.items.filter((x) => x.name === 'おかわり2RPG自動支払いの札')
         .length &&
       data.replayOkawari != null,
-    desc: '所持している間、おかわりおかわりRPGをプレイする際に確認をスキップして自動でコインを消費します',
+    desc: `所持している間、おかわりおかわりRPGをプレイする際に確認をスキップして自動で${config.rpgCoinShortName}を消費します`,
     price: 1,
     type: 'token',
     effect: { autoReplayOkawari: true },
@@ -668,14 +669,28 @@ export const shopItems: ShopItem[] = [
     isUsed: (data) => true,
   } as AmuletItem,
   {
+    name: `ダイジェストフィルム`,
+    limit: (data) =>
+      data.lv >= 255 &&
+      !data.allClear &&
+      (data.clearHistory?.length ?? 0) - (data.clearEnemy?.length ?? 0) > 0,
+    price: (data) =>
+      (data.clearHistory?.length ?? 0) - (data.clearEnemy?.length ?? 0) * 1,
+    desc: `購入時、これまで倒した事のある敵全てに連勝中である事にします`,
+    type: 'item',
+    effect: (data) => {
+      data.clearEnemy = data.clearHistory;
+    },
+  },
+  {
     name: `⚠時間圧縮ボタン`,
     limit: (data) =>
       data.lv < 254 &&
       data.maxLv > 254 &&
       data.info === 3 &&
-      data.clearHistory.includes(':aine_youshou:'),
+      data.clearHistory.includes(':mk_chickenda_gtgt:'),
     price: lvBoostPrice,
-    desc: `購入時、周囲の時間を圧縮！阨ちゃんがLv254に急成長します（⚠注意！戦闘を行う事なくレベルを上げる為、戦闘勝利数などの統計は一切増加しません！さらに、RPGおかわりの権利があと1回まで減少します！一度購入すると元には戻せません！）`,
+    desc: `購入時、周囲の時間を圧縮！${config.rpgHeroName}がLv254に急成長します（⚠注意！戦闘を行う事なくレベルを上げる為、戦闘勝利数などの統計は一切増加しません！さらに、RPGおかわりの権利があと1回まで減少します！一度購入すると元には戻せません！）`,
     type: 'item',
     effect: lvBoostEffect,
     always: true,

@@ -34,6 +34,7 @@ import PollModule from './modules/poll';
 import ReminderModule from './modules/reminder';
 import RpgModule from './modules/rpg';
 import WikipediaModule from './modules/wikipedia';
+import ForecastModule from './modules/forecast';
 
 console.log('   __    ____  _____  ___ ');
 console.log('  /__\\  (_  _)(  _  )/ __)');
@@ -95,6 +96,7 @@ promiseRetry(
       new ReminderModule(),
       new RpgModule(),
       new WikipediaModule(),
+      new ForecastModule(),
     ]);
   })
   .catch((e) => {

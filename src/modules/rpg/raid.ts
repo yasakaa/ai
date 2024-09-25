@@ -31,6 +31,7 @@ import serifs from '@/serifs';
 import getDate from '@/utils/get-date';
 import { acct } from '@/utils/acct';
 import seedrandom from 'seedrandom';
+import config from '@/config';
 
 /** レイド情報の型 */
 export type Raid = {
@@ -454,7 +455,11 @@ function finish(raid: Raid) {
       sortAttackers[Math.floor(Math.random() * sortAttackers.length)].user;
     const bonus = Math.ceil((sortAttackers.length / 5) * scoreRaw);
     results.push(
-      '\nラッキー！: ' + acct(luckyUser) + '\nキレイなどんぐり+' + bonus + '個',
+      '\nラッキー！: ' +
+        acct(luckyUser) +
+        `\n${config.rpgCoinName}+` +
+        bonus +
+        '個',
     );
     const friend = ai.lookupFriend(luckyUser.id);
     if (!friend) return;
@@ -1169,17 +1174,17 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
       }
       const mindMsg = (mind) => {
         if (mind >= 100) {
-          message += `阨ちゃんの気合が特大アップ！\n`;
+          message += `${config.rpgHeroName}の気合が特大アップ！\n`;
         } else if (mind >= 70) {
-          message += `阨ちゃんの気合が大アップ！\n`;
+          message += `${config.rpgHeroName}の気合が大アップ！\n`;
         } else if (mind > 30) {
-          message += `阨ちゃんの気合がアップ！\n`;
+          message += `${config.rpgHeroName}の気合がアップ！\n`;
         } else if (mind > 0) {
-          message += `阨ちゃんの気合が小アップ！\n`;
+          message += `${config.rpgHeroName}の気合が小アップ！\n`;
         } else if (mind > -50) {
           message += `あまり良い気分ではないようだ…\n`;
         } else {
-          message += `阨ちゃんの気合が下がった…\n`;
+          message += `${config.rpgHeroName}の気合が下がった…\n`;
         }
       };
       if (item.type !== 'poison') {
@@ -1225,13 +1230,13 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
             itemBonus.atk = lv * 4 * (item.effect * 0.007);
             atk = atk + itemBonus.atk;
             if (item.effect >= 100) {
-              message += `阨ちゃんのパワーが特大アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが特大アップ！\n`;
             } else if (item.effect >= 70) {
-              message += `阨ちゃんのパワーが大アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが大アップ！\n`;
             } else if (item.effect > 30) {
-              message += `阨ちゃんのパワーがアップ！\n`;
+              message += `${config.rpgHeroName}のパワーがアップ！\n`;
             } else {
-              message += `阨ちゃんのパワーが小アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが小アップ！\n`;
             }
           }
           break;
@@ -1248,13 +1253,13 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
             itemBonus.def = lv * 4 * (item.effect * 0.007);
             def = def + itemBonus.def;
             if (item.effect >= 100) {
-              message += `阨ちゃんの防御が特大アップ！\n`;
+              message += `${config.rpgHeroName}の防御が特大アップ！\n`;
             } else if (item.effect >= 70) {
-              message += `阨ちゃんの防御が大アップ！\n`;
+              message += `${config.rpgHeroName}の防御が大アップ！\n`;
             } else if (item.effect > 30) {
-              message += `阨ちゃんの防御がアップ！\n`;
+              message += `${config.rpgHeroName}の防御がアップ！\n`;
             } else {
-              message += `阨ちゃんの防御が小アップ！\n`;
+              message += `${config.rpgHeroName}の防御が小アップ！\n`;
             }
           }
           break;
@@ -1283,13 +1288,13 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
             playerHp += heal;
             if (heal > 0) {
               if (item.effect >= 100 && heal >= 50) {
-                message += `阨ちゃんの体力が特大回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が特大回復！\n${heal}ポイント回復した！\n`;
               } else if (item.effect >= 70 && heal >= 35) {
-                message += `阨ちゃんの体力が大回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が大回復！\n${heal}ポイント回復した！\n`;
               } else if (item.effect > 30 && heal >= 15) {
-                message += `阨ちゃんの体力が回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が回復！\n${heal}ポイント回復した！\n`;
               } else {
-                message += `阨ちゃんの体力が小回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が小回復！\n${heal}ポイント回復した！\n`;
               }
             }
           }
@@ -1309,9 +1314,9 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
             );
             playerHp -= dmg;
             if (item.effect >= 70 && dmg > 0) {
-              message += `阨ちゃんはかなり調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
+              message += `${config.rpgHeroName}はかなり調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
             } else if (item.effect > 30 && dmg > 0) {
-              message += `阨ちゃんは調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
+              message += `${config.rpgHeroName}は調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
             } else {
               message += `あまり美味しくなかったようだ…${dmg > 0 ? `\n${dmg}ポイントのダメージを受けた！` : ''}\n`;
             }
@@ -2092,6 +2097,7 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
   const plusActionX = 5;
 
   let attackCount = 0;
+  let drawCount = 0;
 
   for (let actionX = 0; actionX < plusActionX + 1; actionX++) {
     /** バフを得た数。行数のコントロールに使用 */
@@ -2106,16 +2112,22 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
 
     // 自身攻撃の処理
 
-    if (Math.random() < 1 / 3) {
-      attackCount += 1;
+    const rnd = Math.random() < 1 / 3;
+
+    if (count === 1 || rnd) {
+      if (rnd) attackCount += 1;
       /** ダメージ */
-      let dmg = 500 * attackCount;
+      let dmg = Math.round(
+        500 * Math.max(attackCount, 1) * (1 + drawCount * 0.5),
+      );
+      drawCount = 0;
       //** クリティカルかどうか */
-      let crit = attackCount >= 4;
+      let crit = dmg >= 2000;
       // メッセージの出力
       message += (crit ? `**${enemy.atkmsg(dmg)}**` : enemy.atkmsg(dmg)) + '\n';
       totalDmg += dmg;
     } else if (Math.random() < 1 / 2) {
+      drawCount += 1;
       // メッセージの出力
       message += serifs.rpg.draw + '\n';
     } else {
@@ -2152,14 +2164,14 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
   if (playerHp > 0) {
     attackCount += 1;
     /** ダメージ */
-    let dmg = 500 * attackCount;
+    let dmg = Math.round(500 * attackCount * (1 + drawCount * 0.5));
     if (attackCount >= 7) {
       while (Math.random() < 1 / 3) {
         dmg += 1000;
       }
     }
     //** クリティカルかどうか */
-    let crit = attackCount >= 4;
+    let crit = dmg >= 2000;
     // メッセージの出力
     message += '\n\n' + (crit ? `**${enemy.atkmsg(dmg)}**` : enemy.atkmsg(dmg));
     totalDmg += dmg;
@@ -2214,6 +2226,7 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
   } else {
     reply = await msg.reply(`<center>${message.slice(0, 7500)}</center>`, {
       cw,
+      visibility: config.rpgRaidReplyVisibility,
     });
     let msgCount = 1;
     while (message.length > msgCount * 7500) {
@@ -2222,6 +2235,7 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
         `<center>${message.slice((msgCount - 1) * 7500, msgCount * 7500)}</center>`,
         {
           cw: cw + ' ' + msgCount,
+          visibility: config.rpgRaidReplyVisibility,
         },
       );
     }

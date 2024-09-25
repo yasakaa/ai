@@ -129,13 +129,16 @@ export default class extends Module {
         return { reaction: ':neofox_approve:' };
       }
       let message = 'とリンクしているアカウント一覧\n\n';
-      // ユーザの投稿数を取得
-      const chart = await this.ai.api('charts/user/notes', {
-        span: 'day',
-        limit: 2,
-        userId: msg.userId,
-        addInfo: true,
-      });
+      let chart;
+      if (!msg.user.host || config.forceRemoteChartPostCount) {
+        // ユーザの投稿数を取得
+        chart = await this.ai.api('charts/user/notes', {
+          span: 'day',
+          limit: 2,
+          userId: msg.userId,
+          addInfo: true,
+        });
+      }
 
       let totalPostCount = 0;
       // チャートがない場合
@@ -188,12 +191,15 @@ export default class extends Module {
               'をリンクしてほしいのじゃ）';
           }
 
-          // ユーザの投稿数を取得
-          const chart = await this.ai.api('charts/user/notes', {
-            span: 'day',
-            limit: 2,
-            userId: userId,
-          });
+          let chart;
+          if (!friend.doc.user.host || config.forceRemoteChartPostCount) {
+            // ユーザの投稿数を取得
+            chart = await this.ai.api('charts/user/notes', {
+              span: 'day',
+              limit: 2,
+              userId: userId,
+            });
+          }
 
           // チャートがない場合
           if (!chart?.diffs) {
@@ -1103,7 +1109,7 @@ ${data.recentlyReceivedReactions
       msg.reply(
         `
 ※リモートユーザの為、絵文字がうまく表示されない可能性、正しい情報が表示されない可能性があるのじゃ。
-絵文字がうまく表示されない場合はリモートで表示などのボタンを使用し、皆尽村にて確認してほしいのじゃ。
+絵文字がうまく表示されない場合はリモートで表示などのボタンを使用し、${config.instanceName}で確認してほしいのじゃ
 
 受け取った事がある絵文字の種類 : **${data.receivedReactionsCount}** 種類
 

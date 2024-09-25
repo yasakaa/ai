@@ -1,3 +1,5 @@
+import { StringLiteral } from 'typescript';
+
 type Config = {
   host: string;
   i: string;
@@ -13,11 +15,46 @@ type Config = {
   mecabDic?: string;
   mecabCustom?: string;
   memoryDir?: string;
+  /** インスタンス名 */
+  instanceName?: string;
+  /** 全公開での投稿を禁止？ */
+  postNotPublic?: boolean;
+  /** ランダムポストでローカルのみを使用？ */
+  randomPostLocalOnly?: boolean;
+  /** RPGでの主人公の名前 */
+  rpgHeroName?: string;
+  /** RPGでの通貨の名前 */
+  rpgCoinName?: string;
+  /** RPGでの通貨の短縮名 */
+  rpgCoinShortName?: string;
+  /** RPGで返信必須にする？ */
+  rpgReplyRequired?: boolean;
+  /** RPGの返信の公開範囲 */
+  rpgReplyVisibility?: string;
+  /** RPG（レイド）の返信の公開範囲 */
+  rpgRaidReplyVisibility?: string;
+  /**
+   * リモートユーザのチャートからの投稿数取得を強制？
+   * リモートユーザでも必ず正しい値が取得できる場合はTrueに
+   * */
+  forceRemoteChartPostCount?: boolean;
 };
 
-const config = require("../config.json");
+const config = require('../config.json');
 
-config.wsUrl = config.host.replace("http", "ws");
-config.apiUrl = config.host + "/api";
+config.wsUrl = config.host.replace('http', 'ws');
+config.apiUrl = config.host + '/api';
+
+// 設定が存在しない場合はデフォルトを設定
+if (!config.instanceName) config.instanceName = '皆尽村';
+if (!config.postNotPublic !== false) config.postNotPublic = false;
+if (!config.randomPostLocalOnly !== false) config.randomPostLocalOnly = true;
+if (!config.rpgHeroName) config.rpgHeroName = '阨ちゃん';
+if (!config.rpgCoinName) config.rpgCoinName = 'キレイなどんぐり';
+if (!config.rpgCoinShortName) config.rpgCoinShortName = 'どんぐり';
+if (config.rpgReplyRequired !== false) config.rpgReplyRequired = false;
+if (!config.rpgReplyVisibility) config.rpgReplyVisibility = 'home';
+if (!config.rpgRaidReplyVisibility) config.rpgRaidReplyVisibility = 'home';
+if (!config.forceRemoteChartPostCount) config.forceRemoteChartPostCount = false;
 
 export default config as Config;

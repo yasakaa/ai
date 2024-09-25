@@ -78,6 +78,7 @@ export default class extends Module {
   @autobind
   private async mentionHook(msg: Message) {
     if (
+      config.rpgReplyRequired &&
       !msg.user.host &&
       msg.visibility !== 'specified' &&
       (!msg.replyId || msg.replyNote?.userId !== this.ai.account.id)
@@ -428,7 +429,7 @@ export default class extends Module {
     }
     if (data.duplicationOrb) {
       message.push(
-        `スキル複製珠${data.duplicationOrb >= 2 ? ' ×' + data.duplicationOrb : ''}`,
+        `${config.rpgCoinName}${data.coin >= 2 ? ' ×' + data.coin : ''}`,
       );
     }
     if (message.length !== 1 && data.coin) {
@@ -1509,17 +1510,17 @@ export default class extends Module {
       }
       const mindMsg = (mind) => {
         if (mind >= 100) {
-          message += `阨ちゃんの気合が特大アップ！\n`;
+          message += `${config.rpgHeroName}の気合が特大アップ！\n`;
         } else if (mind >= 70) {
-          message += `阨ちゃんの気合が大アップ！\n`;
+          message += `${config.rpgHeroName}の気合が大アップ！\n`;
         } else if (mind > 30) {
-          message += `阨ちゃんの気合がアップ！\n`;
+          message += `${config.rpgHeroName}の気合がアップ！\n`;
         } else if (mind > 0) {
-          message += `阨ちゃんの気合が小アップ！\n`;
+          message += `${config.rpgHeroName}の気合が小アップ！\n`;
         } else if (mind > -50) {
           message += `あまり良い気分ではないようだ…\n`;
         } else {
-          message += `阨ちゃんの気合が下がった…\n`;
+          message += `${config.rpgHeroName}の気合が下がった…\n`;
         }
       };
       if (item.type !== 'poison') {
@@ -1565,13 +1566,13 @@ export default class extends Module {
             itemBonus.atk = lv * 4 * (item.effect * 0.005);
             atk = atk + itemBonus.atk;
             if (item.effect >= 100) {
-              message += `阨ちゃんのパワーが特大アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが特大アップ！\n`;
             } else if (item.effect >= 70) {
-              message += `阨ちゃんのパワーが大アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが大アップ！\n`;
             } else if (item.effect > 30) {
-              message += `阨ちゃんのパワーがアップ！\n`;
+              message += `${config.rpgHeroName}のパワーがアップ！\n`;
             } else {
-              message += `阨ちゃんのパワーが小アップ！\n`;
+              message += `${config.rpgHeroName}のパワーが小アップ！\n`;
             }
           }
           break;
@@ -1588,13 +1589,13 @@ export default class extends Module {
             itemBonus.def = lv * 4 * (item.effect * 0.005);
             def = def + itemBonus.def;
             if (item.effect >= 100) {
-              message += `阨ちゃんの防御が特大アップ！\n`;
+              message += `${config.rpgHeroName}の防御が特大アップ！\n`;
             } else if (item.effect >= 70) {
-              message += `阨ちゃんの防御が大アップ！\n`;
+              message += `${config.rpgHeroName}の防御が大アップ！\n`;
             } else if (item.effect > 30) {
-              message += `阨ちゃんの防御がアップ！\n`;
+              message += `${config.rpgHeroName}の防御がアップ！\n`;
             } else {
-              message += `阨ちゃんの防御が小アップ！\n`;
+              message += `${config.rpgHeroName}の防御が小アップ！\n`;
             }
           }
           break;
@@ -1623,13 +1624,13 @@ export default class extends Module {
             playerHp += heal;
             if (heal > 0) {
               if (item.effect >= 100 && heal >= 50) {
-                message += `阨ちゃんの体力が特大回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が特大回復！\n${heal}ポイント回復した！\n`;
               } else if (item.effect >= 70 && heal >= 35) {
-                message += `阨ちゃんの体力が大回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が大回復！\n${heal}ポイント回復した！\n`;
               } else if (item.effect > 30 && heal >= 15) {
-                message += `阨ちゃんの体力が回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が回復！\n${heal}ポイント回復した！\n`;
               } else {
-                message += `阨ちゃんの体力が小回復！\n${heal}ポイント回復した！\n`;
+                message += `${config.rpgHeroName}の体力が小回復！\n${heal}ポイント回復した！\n`;
               }
             }
           }
@@ -1649,9 +1650,9 @@ export default class extends Module {
             );
             playerHp -= dmg;
             if (item.effect >= 70 && dmg > 0) {
-              message += `阨ちゃんはかなり調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
+              message += `${config.rpgHeroName}はかなり調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
             } else if (item.effect > 30 && dmg > 0) {
-              message += `阨ちゃんは調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
+              message += `${config.rpgHeroName}は調子が悪くなった…\n${dmg}ポイントのダメージを受けた！\n`;
             } else {
               message += `あまり美味しくなかったようだ…${dmg > 0 ? `\n${dmg}ポイントのダメージを受けた！` : ''}\n`;
             }
@@ -2532,7 +2533,7 @@ export default class extends Module {
         : data.lastOnemorePlayedAt !== getDate()
           ? '(無料でおかわり可能)'
           : data.coin >= needCoin
-            ? `(どんぐりでおかわり可能 ${data.coin > 99 ? '99+' : data.coin} / ${needCoin})`
+            ? `(${config.rpgCoinShortName}でおかわり可能 ${data.coin > 99 ? '99+' : data.coin} / ${needCoin})`
             : '',
     ]
       .filter(Boolean)
@@ -2618,6 +2619,7 @@ export default class extends Module {
 
     msg.reply(`<center>${message}</center>`, {
       cw,
+      visibility: config.rpgReplyVisibility,
     });
 
     return {
