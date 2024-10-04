@@ -1,120 +1,131 @@
-import autobind from "autobind-decorator";
-const delay = require("timeout-as-promise");
+import autobind from 'autobind-decorator';
+const delay = require('timeout-as-promise');
 
-import 藍 from "@/ai";
-import Friend from "@/friend";
-import { User } from "@/misskey/user";
-import includes from "@/utils/includes";
-import or from "@/utils/or";
-import config from "@/config";
-import { acct } from "@/utils/acct";
+import 藍 from '@/ai';
+import Friend from '@/friend';
+import { User } from '@/misskey/user';
+import includes from '@/utils/includes';
+import or from '@/utils/or';
+import config from '@/config';
+import { acct } from '@/utils/acct';
 
 export default class Message {
-	private ai: 藍;
-	private note: any;
+  private ai: 藍;
+  private note: any;
 
-	public get id(): string {
-		return this.note.id;
-	}
+  public get id(): string {
+    return this.note.id;
+  }
 
-	public get user(): User {
-		return this.note.user;
-	}
+  public get user(): User {
+    return this.note.user;
+  }
 
-	public get userId(): string {
-		return this.note.userId;
-	}
+  public get userId(): string {
+    return this.note.userId;
+  }
 
-	public get text(): string {
-		return this.note.text;
-	}
+  public get text(): string {
+    return typeof this.note.text !== 'string'
+      ? this.note.text
+      : this.note.text.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (m) =>
+          String.fromCharCode(m.charCodeAt(0) - 0xfee0),
+        );
+  }
 
-	public get quoteId(): string | null {
-		return this.note.renoteId;
-	}
+  public get quoteId(): string | null {
+    return this.note.renoteId;
+  }
 
-	public get visibility(): string {
-		return this.note.visibility;
-	}
+  public get visibility(): string {
+    return this.note.visibility;
+  }
 
-	public get localOnly(): boolean {
-		return this.note.localOnly ?? false;
-	}
+  public get localOnly(): boolean {
+    return this.note.localOnly ?? false;
+  }
 
-	/**
-	 * メンション部分を除いたテキスト本文
-	 */
-	public get extractedText(): string {
-		const host = new URL(config.host).host.replace(/\./g, "\\.");
-		return this.text
-			.replace(new RegExp(`^@${this.ai.account.username}@${host}\\s`, "i"), "")
-			.replace(new RegExp(`^@${this.ai.account.username}\\s`, "i"), "")
-			.trim();
-	}
+  /**
+   * メンション部分を除いたテキスト本文
+   */
+  public get extractedText(): string {
+    const host = new URL(config.host).host.replace(/\./g, '\\.');
+    return this.text
+      .replace(new RegExp(`^@${this.ai.account.username}@${host}\\s`, 'i'), '')
+      .replace(new RegExp(`^@${this.ai.account.username}\\s`, 'i'), '')
+      .trim();
+  }
 
-	public get replyId(): string {
-		return this.note.replyId;
-	}
+  public get replyNote(): any {
+    return this.note.reply;
+  }
 
-	public friend: Friend;
+  public get replyId(): string {
+    return this.note.replyId;
+  }
 
-	constructor(ai: 藍, note: any) {
-		this.ai = ai;
-		this.note = note;
+  public friend: Friend;
 
-		this.friend = new Friend(ai, { user: this.user });
+  constructor(ai: 藍, note: any) {
+    this.ai = ai;
+    this.note = note;
 
-		// メッセージなどに付いているユーザー情報は省略されている場合があるので完全なユーザー情報を持ってくる
-		this.ai
-			.api("users/show", {
-				userId: this.userId,
-			})
-			.then((user) => {
-				this.friend.updateUser(user);
-			});
-	}
+    this.friend = new Friend(ai, { user: this.user });
 
-	@autobind
-	public async reply(
-		text: string | null,
-		opts?: {
-			file?: any;
-			cw?: string;
-			renote?: string;
-			immediate?: boolean;
-			visibility?: string;
-			localOnly?: boolean;
-		}
-	) {
-		if (text == null) return;
+    // メッセージなどに付いているユーザー情報は省略されている場合があるので完全なユーザー情報を持ってくる
+    this.ai
+      .api('users/show', {
+        userId: this.userId,
+      })
+      .then((user) => {
+        this.friend.updateUser(user);
+      });
+  }
 
-		this.ai.log(`>>> Sending reply to ${this.id}`);
+  @autobind
+  public async reply(
+    text: string | null,
+    opts?: {
+      file?: any;
+      cw?: string;
+      renote?: string;
+      immediate?: boolean;
+      visibility?: string;
+      localOnly?: boolean;
+    },
+  ) {
+    if (text == null) return;
 
-		if (!opts?.immediate) {
-			await delay(2000);
-		}
+    this.ai.log(`>>> Sending reply to ${this.id}`);
 
-		return await this.ai.post({
-			replyId: this.note.id,
-			text: (opts?.cw?.includes("@") ? "" : acct(this.user) + " ") + text,
-			fileIds: opts?.file ? [opts?.file.id] : undefined,
-			cw: opts?.cw,
-			renoteId: opts?.renote,
-			visibility: opts?.visibility ?? "home",
-			localOnly: opts?.localOnly || false,
-			...(opts?.visibility === "specified"
-				? { visibleUserIds: [this.userId] }
-				: {}),
-		});
-	}
+    if (!opts?.immediate) {
+      await delay(2000);
+    }
 
-	@autobind
-	public includes(words: string[]): boolean {
-		return includes(this.text, words);
-	}
+    // 相手のvisibilityに応じて自分のvisibilityを設定
+    const replyVisibility = opts?.visibility ?? this.note.visibility;
 
-	@autobind
-	public or(words: (string | RegExp)[]): boolean {
-		return or(this.text, words);
-	}
+    return await this.ai.post({
+      replyId: this.note.id,
+      text: (opts?.cw?.includes('@') ? '' : acct(this.user) + ' ') + text,
+      fileIds: opts?.file ? [opts?.file.id] : undefined,
+      cw: opts?.cw,
+      renoteId: opts?.renote,
+      visibility: replyVisibility,
+      localOnly: opts?.localOnly || false,
+      ...(replyVisibility === 'specified'
+        ? { visibleUserIds: [this.userId] }
+        : {}),
+    });
+  }
+
+  @autobind
+  public includes(words: string[]): boolean {
+    return includes(this.extractedText, words);
+  }
+
+  @autobind
+  public or(words: (string | RegExp)[]): boolean {
+    return or(this.extractedText, words);
+  }
 }
