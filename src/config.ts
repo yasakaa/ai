@@ -34,7 +34,7 @@ type Config = {
   /** RPG（レイド）の返信の公開範囲 */
   rpgRaidReplyVisibility?: string;
   /**
-   * リモートユーザのチャートからの投稿数取得を強制？
+   * チャートからの投稿数取得を強制？
    * リモートユーザでも必ず正しい値が取得できる場合はTrueに
    * */
   forceRemoteChartPostCount?: boolean;
@@ -53,8 +53,6 @@ if (!config.rpgHeroName) config.rpgHeroName = '阨ちゃん';
 if (!config.rpgCoinName) config.rpgCoinName = 'キレイなどんぐり';
 if (!config.rpgCoinShortName) config.rpgCoinShortName = 'どんぐり';
 if (config.rpgReplyRequired !== false) config.rpgReplyRequired = false;
-if (!config.rpgReplyVisibility) config.rpgReplyVisibility = 'home';
-if (!config.rpgRaidReplyVisibility) config.rpgRaidReplyVisibility = 'home';
 if (!config.forceRemoteChartPostCount) config.forceRemoteChartPostCount = false;
 
 export default config as Config;
