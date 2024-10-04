@@ -832,7 +832,7 @@ export const shop2Reply = async (module: rpg, ai: 藍, msg: Message) => {
       serifs.rpg.shop.welcome2(data.coin, data.rerollOrb),
       ...showShopItems.map(
         (x, index) =>
-          `[${numberCharConvert(index + 1)}] ${x.name} ${x.orb ? '**変更珠** ' : ''}${x.price}${x.orb ? '個' : '枚'}\n${x.desc}\n`,
+          `[${numberCharConvert(index + 1)}] ${x.name} ${x.orb ? '**変更珠** ' : ''}${x.price}${x.orb ? '個' : '個'}\n${x.desc}\n`,
       ),
     ].join('\n'),
     { visibility: 'specified' },

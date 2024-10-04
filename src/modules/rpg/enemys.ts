@@ -99,6 +99,8 @@ export type RaidEnemy = Enemy & {
   alwaysCrit?: boolean;
   /** 処理に使用するパターンを指定 */
   pattern?: number;
+  /** 全力の一撃の最大ダメージを指定 */
+  maxLastDmg?: number;
 };
 
 /** 敵一覧 */
@@ -1340,6 +1342,7 @@ export const raidEnemys: RaidEnemy[] = [
     atkx: 4.25,
     defx: 4.25,
     power: 50,
+    maxLastDmg: 1000,
   },
   {
     name: ':ainekun_dot_oko:',

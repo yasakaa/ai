@@ -660,12 +660,24 @@ export const shopItems: ShopItem[] = [
   } as AmuletItem,
   {
     name: `虹色のお守り`,
+    limit: (data) => data.skills?.length > 2,
     price: 20,
     desc: `曜日に関係なく、全ての属性剣が強化状態になります 耐久10 使用時耐久減少`,
     type: 'amulet',
     effect: { rainbow: 1 },
     durability: 10,
     short: '🌈',
+    isUsed: (data) => true,
+  } as AmuletItem,
+  {
+    name: `わかばのお守り`,
+    limit: (data) => data.skills?.length < 4,
+    price: 10,
+    desc: `所持しているスキル数が少ないほどステータスが上がります 耐久20`,
+    type: 'amulet',
+    effect: { beginner: 0.05 },
+    durability: 20,
+    short: '🔰',
     isUsed: (data) => true,
   } as AmuletItem,
   {
@@ -688,7 +700,7 @@ export const shopItems: ShopItem[] = [
       data.lv < 254 &&
       data.maxLv > 254 &&
       data.info === 3 &&
-      data.clearHistory.includes(':mk_chickenda_gtgt:'),
+      data.clearHistory.includes(':aine_youshou:'),
     price: lvBoostPrice,
     desc: `購入時、周囲の時間を圧縮！${config.rpgHeroName}がLv254に急成長します（⚠注意！戦闘を行う事なくレベルを上げる為、戦闘勝利数などの統計は一切増加しません！さらに、RPGおかわりの権利があと1回まで減少します！一度購入すると元には戻せません！）`,
     type: 'item',
@@ -866,11 +878,18 @@ const determineOutcome = (ai, data, getShopItems) => {
   return getShopItems();
 };
 
-const eventAmulet = () => {
+const eventAmulet = (data?) => {
   // イベント的にショップにアイテムを並ばせることができます
   const y = new Date().getFullYear();
   const m = new Date().getMonth() + 1;
   const d = new Date().getDate();
+  if (
+    data?.skills?.length >= 1 &&
+    data?.skills?.length <= 3 &&
+    !data.items?.some((y) => y.type === 'amulet')
+  ) {
+    return `わかばのお守り`;
+  }
   return undefined;
 };
 
@@ -917,7 +936,7 @@ export const shopReply = async (module: rpg, ai: 藍, msg: Message) => {
     data.shopItems = [
       getShopItems(),
       getShopItems(),
-      eventAmulet() || getShopItems(),
+      eventAmulet(data) || getShopItems(),
       data.lastBreakItem && Math.random() < 0.95
         ? data.lastBreakItem
         : getShopItems(),
@@ -981,7 +1000,7 @@ export const shopReply = async (module: rpg, ai: 藍, msg: Message) => {
       serifs.rpg.shop.welcome(data.coin),
       ...showShopItems.map(
         (x, index) =>
-          `[${numberCharConvert(index + 1)}] ${x.name} ${x.price}枚\n${x.desc}\n`,
+          `[${numberCharConvert(index + 1)}] ${x.name} ${x.price}個\n${x.desc}\n`,
       ),
     ].join('\n'),
     { visibility: 'specified' },

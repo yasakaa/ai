@@ -729,7 +729,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
           postCount,
           tp > 1
             ? '+' + Math.floor((tp - 1) * 100)
-            : '-' + Math.floor((tp - 1) * 100),
+            : Math.floor((tp - 1) * 100),
         ) + `\n`;
     }
   } else {
@@ -755,6 +755,19 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
 
   // ここで残りのステータスを計算しなおす
   let { atk, def, spd } = calculateStats(data, msg, skillEffects, color, 0.2);
+
+  // 敵のステータスを計算
+  /** 敵の攻撃力 */
+  let enemyAtk =
+    typeof enemy.atk === 'function'
+      ? enemy.atk(atk, def, spd)
+      : lv * 3.5 * (enemy.atk ?? 1);
+  /** 敵の防御力 */
+  let enemyDef =
+    typeof enemy.def === 'function'
+      ? enemy.def(atk, def, spd)
+      : lv * 3.5 * (enemy.def ?? 1);
+
   if (
     skillEffects.fortuneEffect ||
     aggregateTokensEffects(data).fortuneEffect
@@ -916,18 +929,6 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
   if (isTired) {
     def = def * (1 + (skillEffects.notBattleBonusDef ?? 0));
   }
-
-  // 敵のステータスを計算
-  /** 敵の攻撃力 */
-  let enemyAtk =
-    typeof enemy.atk === 'function'
-      ? enemy.atk(atk, def, spd)
-      : lv * 3.5 * (enemy.atk ?? 1);
-  /** 敵の防御力 */
-  let enemyDef =
-    typeof enemy.def === 'function'
-      ? enemy.def(atk, def, spd)
-      : lv * 3.5 * (enemy.def ?? 1);
 
   if (skillEffects.enemyStatusBonus) {
     const enemyStrongs = Math.min(
@@ -1863,15 +1864,19 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
       (enemyFDef / (lv * 3.5)) * (getVal(enemy.defx, [6]) ?? 3),
       enemySAtk / 3000,
     );
+    let lastDmg =
+      (1000 + (enemySAtk >= 24 ? enemySAtk / 0.048 : 0)) *
+      Math.max(enemySAtk / enemySDef, 1);
     let dmg = Math.round(
       (playerHp / playerMaxHp) *
-        (1000 + (enemySAtk >= 24 ? enemySAtk / 0.048 : 0)) *
-        Math.max(enemySAtk / enemySDef, 1) *
+        (enemy.maxLastDmg ? Math.min(lastDmg, enemy.maxLastDmg) : lastDmg) *
         (1 + (skillEffects.finalAttackUp ?? 0)),
     );
     if (sevenFever) {
-      const num = 7 * (skillEffects.sevenFever || 1);
-      dmg = Math.ceil(dmg / num) * num;
+      dmg =
+        dmg >= 777
+          ? Math.max(Math.floor((dmg - 777) / 1000) * 1000, 0) + 777
+          : dmg;
     }
     message +=
       '\n\n' +

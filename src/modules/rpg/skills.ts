@@ -183,6 +183,7 @@ export type SkillEffect = {
   rainbow?: number;
   guardAtkUp?: number;
   distributed?: number;
+  beginner?: number;
 };
 
 export type Skill = {
@@ -205,6 +206,7 @@ export type Skill = {
   /** お守りとして出ない場合 */
   skillOnly?: boolean;
 };
+
 export const skills: Skill[] = [
   {
     name: `${serifs.rpg.status.atk}+10%`,
@@ -307,7 +309,7 @@ export const skills: Skill[] = [
     effect: { notBattleBonusDef: 0.22 },
   },
   {
-    name: `油断せず行こう`,
+    name: `油断せずいこう`,
     short: '断',
     desc: `ターン1に受けるダメージを大きく軽減します`,
     info: `ターン1にてダメージカット30%を得る\n100%以上になる場合、残りはターン2に持ち越す`,
@@ -431,9 +433,9 @@ export const skills: Skill[] = [
   {
     name: `${serifs.rpg.dmg.give}${serifs.rpg.status.rndP}`,
     short: '乱',
-    desc: `乱数幅が20~180 -> 5~230になります クリティカル率も上がります`,
-    info: `乱数幅 20~180 -> 5~230 (%) 期待値 115% クリティカル率+2% 乱数系と重複しない`,
-    effect: { atkRndMin: -0.15, atkRndMax: 0.5, critUpFixed: 0.02 },
+    desc: `乱数幅が20~180 -> 5~225になります クリティカル率も上がります`,
+    info: `乱数幅 20~180 -> 5~225 (%) 期待値 115% クリティカル率+2% 乱数系と重複しない`,
+    effect: { atkRndMin: -0.15, atkRndMax: 0.6, critUpFixed: 0.02 },
     unique: 'rnd',
   },
   {
@@ -1033,6 +1035,9 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
 
   const day = new Date().getDay();
 
+  aggregatedEffect.atkUp = 1 + (aggregatedEffect.atkUp ?? 0);
+  aggregatedEffect.defUp = 1 + (aggregatedEffect.defUp ?? 0);
+
   if (data.itemMedal) {
     aggregatedEffect.itemEquip =
       (aggregatedEffect.itemEquip ?? 0) + data.itemMedal * 0.01;
@@ -1044,26 +1049,50 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
       (aggregatedEffect.poisonAvoid ?? 0) + data.itemMedal * 0.01;
   }
 
+  if (aggregatedEffect.beginner) {
+    /** 常時覚醒？ */
+    let alwaysSuper = getColor(data).alwaysSuper;
+    /* スキル数が1少ない度に×1.05 レイドかつ常時覚醒でない場合さらに×1.1 */
+    aggregatedEffect.atkUp =
+      (aggregatedEffect.atkUp ?? 0) *
+      (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
+        (alwaysSuper || !data.raid ? 1 : 1.1));
+    aggregatedEffect.defUp =
+      (aggregatedEffect.defUp ?? 0) *
+      (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
+        (alwaysSuper || !data.raid ? 1 : 1.1));
+  }
+
+  if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {
+    aggregatedEffect.atkUp =
+      (aggregatedEffect.atkUp ?? 0) *
+      (1 + (aggregatedEffect.rainbow - 1) * 0.05);
+    aggregatedEffect.defUp =
+      (aggregatedEffect.defUp ?? 0) *
+      (1 + (aggregatedEffect.rainbow - 1) * 0.05);
+    aggregatedEffect.rainbow = 1;
+  }
+
   //曜日ボーナス
-  if (day == 0 && aggregatedEffect.thunder) {
+  if ((day == 0 || aggregatedEffect.rainbow) && aggregatedEffect.thunder) {
     aggregatedEffect.thunder *= 5 / 3;
   }
-  if (day == 1 && aggregatedEffect.dark) {
+  if ((day == 1 || aggregatedEffect.rainbow) && aggregatedEffect.dark) {
     aggregatedEffect.dark *= 5 / 3;
   }
-  if (day == 2 && aggregatedEffect.fire) {
+  if ((day == 2 || aggregatedEffect.rainbow) && aggregatedEffect.fire) {
     aggregatedEffect.fire *= 5 / 3;
   }
-  if (day == 3 && aggregatedEffect.ice) {
+  if ((day == 3 || aggregatedEffect.rainbow) && aggregatedEffect.ice) {
     aggregatedEffect.ice *= 5 / 3;
   }
-  if (day == 4 && aggregatedEffect.spdUp) {
+  if ((day == 4 || aggregatedEffect.rainbow) && aggregatedEffect.spdUp) {
     aggregatedEffect.spdUp *= 5 / 3;
   }
-  if (day == 5 && aggregatedEffect.light) {
+  if ((day == 5 || aggregatedEffect.rainbow) && aggregatedEffect.light) {
     aggregatedEffect.light *= 5 / 3;
   }
-  if (day == 6 && aggregatedEffect.dart) {
+  if ((day == 6 || aggregatedEffect.rainbow) && aggregatedEffect.dart) {
     aggregatedEffect.dart *= 5 / 3;
   }
 
@@ -1071,11 +1100,11 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
     const count = countDuplicateSkillNames(data.skills);
     if (count < 3) {
       aggregatedEffect.atkUp =
-        (aggregatedEffect.atkUp ?? 0) +
-        aggregatedEffect.distributed * (1 - count * 0.4);
+        (aggregatedEffect.atkUp ?? 0) *
+        (1 + aggregatedEffect.distributed * (1 - count * 0.4));
       aggregatedEffect.defUp =
-        (aggregatedEffect.defUp ?? 0) +
-        aggregatedEffect.distributed * (1 - count * 0.4);
+        (aggregatedEffect.defUp ?? 0) *
+        (1 + aggregatedEffect.distributed * (1 - count * 0.4));
       aggregatedEffect.critUpFixed =
         (aggregatedEffect.critUpFixed ?? 0) +
         aggregatedEffect.distributed * (1 - count * 0.4);
@@ -1100,17 +1129,20 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
 
   if (aggregatedEffect.abortDown && aggregatedEffect.abortDown > 1) {
     aggregatedEffect.atkUp =
-      (aggregatedEffect.atkUp ?? 0) +
-      (aggregatedEffect.abortDown - 1) * (1 / 3);
+      (aggregatedEffect.atkUp ?? 0) *
+      (1 + (aggregatedEffect.abortDown - 1) * (1 / 3));
     aggregatedEffect.abortDown = 1;
   }
 
   if (aggregatedEffect.enemyCritDown && aggregatedEffect.enemyCritDown > 1) {
     aggregatedEffect.defUp =
-      (aggregatedEffect.defUp ?? 0) +
-      (aggregatedEffect.enemyCritDown - 1) * (1 / 3);
+      (aggregatedEffect.defUp ?? 0) *
+      ((1 + aggregatedEffect.enemyCritDown - 1) * (1 / 3));
     aggregatedEffect.enemyCritDown = 1;
   }
+
+  aggregatedEffect.atkUp = aggregatedEffect.atkUp - 1;
+  aggregatedEffect.defUp = aggregatedEffect.defUp - 1;
 
   return aggregatedEffect;
 }
@@ -1184,14 +1216,14 @@ export function aggregateSkillsEffectsSkillX(
       }
     }
   }
+  let uniqueX = 1;
   dataSkills.forEach((_skill) => {
     const skill = _skill.name
       ? (skills.find((x) => x.name === _skill.name) ?? _skill)
       : _skill;
     const __skill = deepClone(skill);
     if (__skill.unique) {
-      __skill.effect.atkUp = (__skill.effect.atkUp ?? 0) + 0.05 * (skillX - 1);
-      __skill.effect.defUp = (__skill.effect.defUp ?? 0) + 0.05 * (skillX - 1);
+      uniqueX = uniqueX * (1 + 0.05 * (skillX - 1));
     } else {
       for (const eff in __skill.effect) {
         __skill.effect[eff] = __skill.effect[eff] * skillX;
@@ -1213,6 +1245,9 @@ export function aggregateSkillsEffectsSkillX(
 
   const day = new Date().getDay();
 
+  aggregatedEffect.atkUp = (1 + (aggregatedEffect.atkUp ?? 0)) * uniqueX;
+  aggregatedEffect.defUp = (1 + (aggregatedEffect.defUp ?? 0)) * uniqueX;
+
   if (data.itemMedal) {
     aggregatedEffect.itemEquip =
       (aggregatedEffect.itemEquip ?? 0) + data.itemMedal * 0.01;
@@ -1224,11 +1259,27 @@ export function aggregateSkillsEffectsSkillX(
       (aggregatedEffect.poisonAvoid ?? 0) + data.itemMedal * 0.01;
   }
 
+  if (aggregatedEffect.beginner) {
+    /** 常時覚醒？ */
+    let alwaysSuper = getColor(data).alwaysSuper;
+    /* スキル数が1少ない度に×1.05 レイドかつ常時覚醒でない場合さらに×1.1 */
+    aggregatedEffect.atkUp =
+      (aggregatedEffect.atkUp ?? 0) *
+      (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
+        (alwaysSuper || !data.raid ? 1 : 1.1));
+    aggregatedEffect.defUp =
+      (aggregatedEffect.defUp ?? 0) *
+      (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
+        (alwaysSuper || !data.raid ? 1 : 1.1));
+  }
+
   if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {
     aggregatedEffect.atkUp =
-      (aggregatedEffect.atkUp ?? 0) + (aggregatedEffect.rainbow - 1) * 0.05;
+      (aggregatedEffect.atkUp ?? 0) *
+      (1 + (aggregatedEffect.rainbow - 1) * 0.05);
     aggregatedEffect.defUp =
-      (aggregatedEffect.defUp ?? 0) + (aggregatedEffect.rainbow - 1) * 0.05;
+      (aggregatedEffect.defUp ?? 0) *
+      (1 + (aggregatedEffect.rainbow - 1) * 0.05);
     aggregatedEffect.rainbow = 1;
   }
 
@@ -1259,11 +1310,11 @@ export function aggregateSkillsEffectsSkillX(
     const count = countDuplicateSkillNames(data.skills);
     if (count < 3) {
       aggregatedEffect.atkUp =
-        (aggregatedEffect.atkUp ?? 0) +
-        aggregatedEffect.distributed * (1 - count * 0.4);
+        (aggregatedEffect.atkUp ?? 0) *
+        (1 + aggregatedEffect.distributed * (1 - count * 0.4));
       aggregatedEffect.defUp =
-        (aggregatedEffect.defUp ?? 0) +
-        aggregatedEffect.distributed * (1 - count * 0.4);
+        (aggregatedEffect.defUp ?? 0) *
+        (1 + aggregatedEffect.distributed * (1 - count * 0.4));
       aggregatedEffect.critUpFixed =
         (aggregatedEffect.critUpFixed ?? 0) +
         aggregatedEffect.distributed * (1 - count * 0.4);
@@ -1288,17 +1339,20 @@ export function aggregateSkillsEffectsSkillX(
 
   if (aggregatedEffect.abortDown && aggregatedEffect.abortDown > 1) {
     aggregatedEffect.atkUp =
-      (aggregatedEffect.atkUp ?? 0) +
-      (aggregatedEffect.abortDown - 1) * (1 / 3);
+      (aggregatedEffect.atkUp ?? 0) *
+      (1 + (aggregatedEffect.abortDown - 1) * (1 / 3));
     aggregatedEffect.abortDown = 1;
   }
 
   if (aggregatedEffect.enemyCritDown && aggregatedEffect.enemyCritDown > 1) {
     aggregatedEffect.defUp =
-      (aggregatedEffect.defUp ?? 0) +
-      (aggregatedEffect.enemyCritDown - 1) * (1 / 3);
+      (aggregatedEffect.defUp ?? 0) *
+      (1 + (aggregatedEffect.enemyCritDown - 1) * (1 / 3));
     aggregatedEffect.enemyCritDown = 1;
   }
+
+  aggregatedEffect.atkUp = aggregatedEffect.atkUp - 1;
+  aggregatedEffect.defUp = aggregatedEffect.defUp - 1;
 
   return aggregatedEffect;
 }
@@ -1468,6 +1522,9 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   let def = 1;
   let spd = 1;
 
+  let lAtk = 1;
+  let lDef = 1;
+
   let bAtk = 1;
   let bDef = 1;
   let bSpd = 1;
@@ -1493,6 +1550,9 @@ export function getTotalEffectString(data: any, skillX = 1): string {
 
   def *= 1 + (skillEffects.defUp ?? 0);
 
+  lAtk = atk;
+  lDef = def;
+
   spd *= 1 + (isSuper ? 0.2 : 0);
 
   if (skillEffects.postXUp) {
@@ -1503,6 +1563,8 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   if (skillEffects.heavenOrHell) {
     atk = atk * (1 + skillEffects.heavenOrHell);
     def = def * (1 + skillEffects.heavenOrHell);
+    lAtk *= 1 / (1 + skillEffects.heavenOrHell);
+    lDef *= 1 / (1 + skillEffects.heavenOrHell);
   }
 
   if (skillEffects.sevenFever) {
@@ -1582,6 +1644,7 @@ export function getTotalEffectString(data: any, skillX = 1): string {
 
   if (skillEffects.allForOne) {
     atk *= 1 + (skillEffects.allForOne ?? 0) * 0.1;
+    lAtk *= 1 + (skillEffects.allForOne ?? 0) * 0.1;
   }
 
   if (skillEffects.ice) {
@@ -1610,12 +1673,23 @@ export function getTotalEffectString(data: any, skillX = 1): string {
     nbDef *= 1 + (skillEffects.dark ?? 0) * 0.3;
   }
 
+  let lAtkText = '';
+  let lDefText = '';
+
   atk -= 1;
+  lAtk -= 1;
+  if (lAtk !== atk) {
+    if (lAtk >= 0) {
+      lAtkText = '+' + showNum(lAtk * 100) + '% ～ ';
+    } else {
+      lAtkText = showNum(lAtk * 100) + '% ～ ';
+    }
+  }
   if (atk) {
     if (atk >= 0) {
-      result.push('パワー: +' + showNum(atk * 100) + '%');
+      result.push('パワー: ' + lAtkText + '+' + showNum(atk * 100) + '%');
     } else {
-      result.push('パワー: ' + showNum(atk * 100) + '%');
+      result.push('パワー: ' + lAtkText + showNum(atk * 100) + '%');
     }
   }
   bAtk -= 1;
@@ -1645,8 +1719,16 @@ export function getTotalEffectString(data: any, skillX = 1): string {
     );
   }
   def -= 1;
+  lDef -= 1;
+  if (lDef !== def) {
+    if (lDef >= 0) {
+      lDefText = '+' + showNum(lDef * 100) + '% ～ ';
+    } else {
+      lDefText = showNum(lDef * 100) + '% ～ ';
+    }
+  }
   if (def) {
-    result.push('防御: +' + showNum(def * 100) + '%');
+    result.push('防御: ' + lDefText + '+' + showNum(def * 100) + '%');
   }
   bDef -= 1;
   if (bDef) {
@@ -2060,7 +2142,7 @@ export function getTotalEffectString(data: any, skillX = 1): string {
           (0.25 * (1 + itemDef) + 0.25 * (1 + itemFood))));
 
   if (totalDef < 1) {
-    result.push('');
+    if (totalAtk <= 1) result.push('');
     result.push('合計防御効果（平均）: ' + showNum((1 - totalDef) * 100) + '%');
   }
 

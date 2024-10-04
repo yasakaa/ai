@@ -111,7 +111,7 @@ export const colors: Color[] = [
             data.maxStatusUp ?? 7
           }** / 12)`,
     enhance: (data) =>
-      (data.winCount ?? 0) + (data.maxStatusUp ?? 0) * 75 >= 1200,
+      (data.winCount ?? 0) + (data.maxStatusUp ?? 0) * 40 >= 710,
   },
   {
     id: 8,
