@@ -1,16 +1,16 @@
-import autobind from 'autobind-decorator';
-import Module from '@/module';
-import Friend from '@/friend';
-import serifs from '@/serifs';
-import { acct } from '@/utils/acct';
-import getDate from '@/utils/get-date';
+import autobind from "autobind-decorator";
+import Module from "@/module";
+import Friend from "@/friend";
+import serifs from "@/serifs";
+import { acct } from "@/utils/acct";
+import getDate from "@/utils/get-date";
 
 function zeroPadding(num: number, length: number): string {
-  return ('0000000000' + num).slice(-length);
+  return ("0000000000" + num).slice(-length);
 }
 
 export default class extends Module {
-  public readonly name = 'birthday';
+  public readonly name = "birthday";
 
   @autobind
   public install() {
@@ -28,14 +28,14 @@ export default class extends Module {
     const now = new Date();
     const m = now.getMonth();
     const d = now.getDate();
-    // 毎日8時ちょうどに通知を送る
-    if (now.getHours() !== 8 || now.getMinutes() !== 0) return;
+    //8時より前に通知を飛ばさない
+    if (now.getHours() < 8) return;
     // Misskeyの誕生日は 2018-06-16 のような形式
     const today = `${zeroPadding(m + 1, 2)}-${zeroPadding(d, 2)}`;
     const todaydate = getDate();
 
     const birthFriends = this.ai.friends.find({
-      'user.birthday': { $regex: new RegExp('-' + today + '$') },
+      "user.birthday": { $regex: new RegExp("-" + today + "$") },
     } as any);
 
     birthFriends.forEach((f) => {
@@ -84,13 +84,13 @@ export default class extends Module {
         this.ai.post({
           text: serifs.birthday.happyBirthdayLocal(
             friend.name,
-            acct(friend.doc.user),
+            acct(friend.doc.user)
           ),
           localOnly: true,
         });
       } else {
         this.ai.sendMessage(friend.userId, {
-          text: acct(friend.doc.user) + ' ' + text,
+          text: acct(friend.doc.user) + " " + text,
         });
       }
     });

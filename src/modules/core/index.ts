@@ -130,7 +130,7 @@ export default class extends Module {
       }
       let message = 'とリンクしているアカウント一覧\n\n';
       let chart;
-      if (config.forceRemoteChartPostCount) {
+      if (!msg.user.host || config.forceRemoteChartPostCount) {
         // ユーザの投稿数を取得
         chart = await this.ai.api('charts/user/notes', {
           span: 'day',
