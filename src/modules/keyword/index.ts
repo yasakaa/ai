@@ -88,7 +88,7 @@ export default class extends Module {
       return;
     }
 
-    const tl = await this.ai.api('notes/hybrid-timeline', {
+    const tl = await this.ai.api('notes/local-timeline', {
       limit: 50,
     });
 
