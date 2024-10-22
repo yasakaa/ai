@@ -42,7 +42,7 @@ export default class extends Module {
         });
         msg.reply(serifs.core.followBack(msg.friend.name));
         return {
-          reaction: msg.friend.love >= 0 ? ':mk_yurayurachicken:' : null,
+          reaction: msg.friend.love >= 0 ? ':neofox_approve:' : null,
         };
       } else {
         msg.reply(serifs.core.alreadyFollowBack(msg.friend.name));
