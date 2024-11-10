@@ -175,7 +175,7 @@ export default class extends Module {
 
     // 投稿用のまとめテキスト作成
     let forecastSummary =
-      'あいちゃんはテレビで今日の天気予報をみているようだ。\n\n <center>今日の天気</center> \n\n';
+      'あいちゃんはテレビで今日の天気予報をみているようだ。\n\n 今日の天気 \n\n';
 
     weatherData.forEach((weather) => {
       if (weather) {
