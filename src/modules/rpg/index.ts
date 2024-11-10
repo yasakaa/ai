@@ -429,11 +429,13 @@ export default class extends Module {
     }
     if (data.duplicationOrb) {
       message.push(
-        `${config.rpgCoinName}${data.coin >= 2 ? ' ×' + data.coin : ''}`,
+        `スキル複製珠${data.duplicationOrb >= 2 ? ' ×' + data.duplicationOrb : ''}`,
       );
     }
     if (message.length !== 1 && data.coin) {
-      message.push(`キレイなどんぐり${data.coin >= 2 ? ' ×' + data.coin : ''}`);
+      message.push(
+        `${config.rpgCoinName}${data.coin >= 2 ? ' ×' + data.coin : ''}`,
+      );
     }
     msg.reply(
       '\n' +
@@ -713,14 +715,21 @@ export default class extends Module {
     // 覚醒状態か？
     const isSuper = color.alwaysSuper;
 
+    let superBonusPost =
+      isSuper && !aggregateTokensEffects(data).hyperMode ? 200 : 0;
+
     // 投稿数（今日と明日の多い方）
     let postCount = await getPostCount(
       this.ai,
       this,
       data,
       msg,
-      isSuper ? 200 : 0,
+      superBonusPost,
     );
+
+    if (isSuper && aggregateTokensEffects(data).hyperMode) {
+      skillEffects.postXUp = (skillEffects.postXUp ?? 0) + 0.005;
+    }
 
     // 投稿数に応じてステータス倍率を得る
     // 連続プレイの場合は倍率アップ
@@ -728,7 +737,7 @@ export default class extends Module {
       getPostX(postCount) *
       (1 +
         (skillEffects.postXUp ?? 0) *
-          Math.min((postCount - (isSuper ? 200 : 0)) / 20, 10));
+          Math.min((postCount - superBonusPost) / 20, 10));
 
     // 自分のカラー
     let me = color.name;
@@ -741,7 +750,21 @@ export default class extends Module {
     let { atk, def, spd } = calculateStats(data, msg, skillEffects, color);
 
     if (isSuper) {
-      spd += 2;
+      if (!aggregateTokensEffects(data).notSuperSpeedUp) spd += 2;
+      if (aggregateTokensEffects(data).redMode) {
+        skillEffects.critUpFixed = (skillEffects.critUpFixed ?? 0) + 0.08;
+        skillEffects.critDmgUp = Math.max(skillEffects.critDmgUp ?? 0, 0.4);
+      } else if (aggregateTokensEffects(data).blueMode) {
+        skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.2;
+      } else if (aggregateTokensEffects(data).yellowMode) {
+        spd += 1;
+        skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.1;
+      } else if (aggregateTokensEffects(data).greenMode) {
+        skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
+        skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
+        skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
+        skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+      }
     }
 
     message += [
@@ -855,9 +878,7 @@ export default class extends Module {
 
     msg.reply(`<center>${message}</center>`, {
       cw,
-      ...(config.rpgReplyVisibility
-        ? { visibility: config.rpgReplyVisibility }
-        : {}),
+      visibility: 'public',
     });
 
     return {
@@ -1115,13 +1136,16 @@ export default class extends Module {
       (data.lv ?? 1) % 100 === 0 ||
       color.alwaysSuper;
 
+    let superBonusPost =
+      isSuper && !aggregateTokensEffects(data).hyperMode ? 200 : 0;
+
     /** 投稿数（今日と明日の多い方）*/
     let postCount = await getPostCount(
       this.ai,
       this,
       data,
       msg,
-      isSuper ? 200 : 0,
+      superBonusPost,
     );
 
     let continuousBonusNum = 0;
@@ -1132,6 +1156,10 @@ export default class extends Module {
       postCount = postCount + continuousBonusNum;
     }
 
+    if (isSuper && aggregateTokensEffects(data).hyperMode) {
+      skillEffects.postXUp = (skillEffects.postXUp ?? 0) + 0.005;
+    }
+
     // 投稿数に応じてステータス倍率を得る
     // 連続プレイの場合は倍率アップ
     /** ステータス倍率（投稿数） */
@@ -1139,7 +1167,7 @@ export default class extends Module {
       getPostX(postCount) *
       (1 +
         (skillEffects.postXUp ?? 0) *
-          Math.min((postCount - (isSuper ? 200 : 0)) / 20, 10));
+          Math.min((postCount - superBonusPost) / 20, 10));
 
     // これが2ターン目以降の場合、戦闘中に計算された最大倍率の50%の倍率が保証される
     data.maxTp = Math.max(tp, data.maxTp ?? 0);
@@ -1287,7 +1315,7 @@ export default class extends Module {
             Math.floor(continuousBonusNum),
           ) + `\n`;
       }
-      if (isSuper) {
+      if (isSuper && !aggregateTokensEffects(data).hyperMode) {
         message += serifs.rpg.postBonusInfo.super + `\n`;
       }
       message +=
@@ -1354,10 +1382,51 @@ export default class extends Module {
           colors[0]?.name;
         buff += 1;
         me = superColor;
-        message += serifs.rpg.super(me) + `\n`;
+        if (!aggregateTokensEffects(data).notSuperSpeedUp)
+          message += serifs.rpg.super(me) + `\n`;
         data.superCount = (data.superCount ?? 0) + 1;
       }
-      spd += 2;
+      let customStr = '';
+      if (!aggregateTokensEffects(data).hyperMode) {
+        customStr += 'パワー・防御が**超**アップ！';
+      } else {
+        customStr += '投稿数による能力上昇量がアップ！';
+      }
+      if (!aggregateTokensEffects(data).notSuperSpeedUp) spd += 2;
+      if (aggregateTokensEffects(data).redMode) {
+        skillEffects.critUpFixed = (skillEffects.critUpFixed ?? 0) + 0.08;
+        skillEffects.critDmgUp = Math.max(skillEffects.critDmgUp ?? 0, 0.35);
+        if (!color.alwaysSuper)
+          message +=
+            serifs.rpg.customSuper(
+              me,
+              `クリティカル性能アップ！\n${customStr}`,
+            ) + `\n`;
+      } else if (aggregateTokensEffects(data).blueMode) {
+        skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.2;
+        if (!color.alwaysSuper)
+          message +=
+            serifs.rpg.customSuper(me, `ダメージカット+20%！\n${customStr}`) +
+            `\n`;
+      } else if (aggregateTokensEffects(data).yellowMode) {
+        spd += 1;
+        skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.1;
+        if (!color.alwaysSuper)
+          message +=
+            serifs.rpg.customSuper(
+              me,
+              `行動回数+1！\nダメージカット+10%！\n${customStr}`,
+            ) + `\n`;
+      } else if (aggregateTokensEffects(data).greenMode) {
+        skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
+        skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
+        skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
+        skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+        if (!color.alwaysSuper)
+          message +=
+            serifs.rpg.customSuper(me, `全アイテム効果+10%！\n${customStr}`) +
+            `\n`;
+      }
     }
 
     if (skillEffects.heavenOrHell) {
@@ -1605,7 +1674,12 @@ export default class extends Module {
           message += `${item.name}を取り出し、食べた！\n`;
           if (data.enemy.pLToR) {
             mindMsg(item.mind);
-            if (item.mind < 0 && isSuper) item.mind = item.mind / 2;
+            if (
+              item.mind < 0 &&
+              isSuper &&
+              !aggregateTokensEffects(data).redMode
+            )
+              item.mind = item.mind / 2;
             itemBonus.atk = atk * (item.mind * 0.0025);
             itemBonus.def = def * (item.mind * 0.0025);
             atk = atk + itemBonus.atk;
@@ -1641,7 +1715,12 @@ export default class extends Module {
           message += `${item.name}を取り出し、食べた！\n`;
           if (data.enemy.pLToR) {
             mindMsg(item.mind);
-            if (item.mind < 0 && isSuper) item.mind = item.mind / 2;
+            if (
+              item.mind < 0 &&
+              isSuper &&
+              !aggregateTokensEffects(data).redMode
+            )
+              item.mind = item.mind / 2;
             itemBonus.atk = atk * (item.mind * 0.0025);
             itemBonus.def = def * (item.mind * 0.0025);
             atk = atk + itemBonus.atk;

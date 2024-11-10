@@ -1,4 +1,5 @@
 // せりふ
+import config from './config';
 
 export default {
   core: {
@@ -540,7 +541,9 @@ export default {
       c: '毎日RPGボーナス！\nパワー・防御が小アップした！',
     },
     super: (me, num = 2) =>
-      `$[x2 ${me}]\n\n**阨ちゃんは覚醒状態になった！**\n行動回数+**${num}**！\nパワー・防御が**超**アップ！`,
+      `$[x2 ${me}]\n\n**${config.rpgHeroName}は覚醒状態になった！**\n行動回数+**${num}**！\nパワー・防御が**超**アップ！`,
+    customSuper: (me, customStr) =>
+      `$[x2 ${me}]\n\n**${config.rpgHeroName}は覚醒状態になった！**\n${customStr}`,
     spdUp: '阨ちゃんは体の調子が良さそうだ！\n行動回数+1！',
     skill: {
       firstItem: 'スキル「準備を怠らない」発動！\n',
