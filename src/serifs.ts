@@ -435,6 +435,11 @@ export default {
         ? `${name}、わらわと約束したこれはやったかのう？:neofox_confused:`
         : `わらわと約束したこれはやったかのう？:neofox_confused:`,
 
+    lastNotify: (name) =>
+      name
+        ? `${name}、これはもう終わったかのう？ 最後の確認なのじゃ！`
+        : `これはもう終わったかのう？ 最後の確認なのじゃ！`,
+
     notifyWithThing: (thing, name) =>
       name
         ? `${name}、「${thing}」はやったかのう？:neofox_confused:`
