@@ -2761,7 +2761,10 @@ export default class extends Module {
       console.log('rpgPlayers List: ' + this.rpgPlayerList.id);
       const friends = this.ai.friends.find() ?? [];
       const rpgPlayers = friends.filter(
-        (x) => x.perModulesData?.rpg?.lv && x.perModulesData?.rpg?.lv >= 20,
+        (x) =>
+          x.perModulesData?.rpg?.lv &&
+          x.perModulesData?.rpg?.lv >= 20 &&
+          !x.perModulesData?.rpg?.isBlocked,
       );
       const listUserIds = new Set(this.rpgPlayerList.userIds);
       let newRpgPlayersUserIds = new Set();
@@ -2774,10 +2777,25 @@ export default class extends Module {
 
       newRpgPlayersUserIds.forEach(async (x) => {
         if (this.rpgPlayerList?.id)
-          await this.ai.api('users/lists/push', {
-            listId: this.rpgPlayerList.id,
-            userId: x,
-          });
+          await this.ai
+            .api('users/lists/push', {
+              listId: this.rpgPlayerList.id,
+              userId: x,
+            })
+            .then(async (res) => {
+              if (
+                typeof x === 'string' &&
+                res?.response?.body?.error?.code === 'YOU_HAVE_BEEN_BLOCKED'
+              ) {
+                const doc = this.ai.lookupFriend(x);
+                if (doc) {
+                  const data = doc.getPerModulesData(this);
+                  data.isBlocked = true;
+                  doc.setPerModulesData(this, data);
+                  console.log('blocked: ' + x);
+                }
+              }
+            });
         console.log('rpgPlayers Account List Push: ' + x);
       });
     }

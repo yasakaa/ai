@@ -77,12 +77,29 @@ export default class extends Module {
       }
 
       newLinkedUserIds.forEach(async (x) => {
-        if (this.list?.id)
-          await this.ai.api('users/lists/push', {
-            listId: this.list.id,
-            userId: x,
-          });
-        console.log('Linked Account List Push: ' + x);
+        if (this.list?.id) {
+          await this.ai
+            .api('users/lists/push', { listId: this.list.id, userId: x })
+            .then(async (res) => {
+              if (
+                typeof x === 'string' &&
+                res?.response?.body?.error?.code === 'YOU_HAVE_BEEN_BLOCKED'
+              ) {
+                // ブロックされたユーザーIDをリンクしているユーザーのアカウントからそのIDを削除
+                for (const linkedUser of linkedUsers) {
+                  if (linkedUser.linkedAccounts?.includes(x)) {
+                    // 該当IDを削除
+                    linkedUser.linkedAccounts =
+                      linkedUser.linkedAccounts.filter((id) => id !== x);
+                    console.log(
+                      `Removed blocked ID ${x} from user ${linkedUser.userId}`,
+                    );
+                  }
+                }
+              }
+            });
+          console.log('Linked Account List Push: ' + x);
+        }
       });
     }
   }
