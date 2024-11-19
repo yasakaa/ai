@@ -7,6 +7,7 @@ import { User } from '@/misskey/user';
 import { acct } from '@/utils/acct';
 import { genItem } from '@/vocabulary';
 import config from '@/config';
+var Decimal = require('break_infinity.js');
 
 type Game = {
   votes: {
@@ -16,14 +17,14 @@ type Game = {
       host: User['host'];
       winCount: number;
     };
-    number: number;
+    number: typeof Decimal;
   }[];
   isEnded: boolean;
   startedAt: number;
   finishedAt: number;
   winRank: number;
   postId: string;
-  maxnum: number;
+  maxnum: typeof Decimal;
   triggerUserId: string | undefined;
   publicOnly: boolean;
   replyKey: string[];
@@ -75,7 +76,7 @@ export default class extends Module {
     // ゲーム開始条件判定
     const h = new Date().getHours();
 
-    // 前回がお流れの場合はランダム発生のクールダウンを120分にする
+    // 前回がお流れの場合はランダム発生のクールダウンを240分にする
     if (
       recentGame &&
       (!recentGame.isEnded ||
@@ -84,42 +85,53 @@ export default class extends Module {
           1000 *
             60 *
             ((recentGame?.votes?.length ?? 2) <= 1 && !triggerUserId
-              ? 120
-              : 60) &&
+              ? 240
+              : 120) &&
           !triggerUserId))
     )
       return;
 
     // 最大値は(前回の参加者＋前々回の参加者/2)に50%で1を足した物
-    let maxnum =
+    let maxnum = new Decimal(
       Math.floor(
         ((recentGame?.votes?.length || 0) +
           (penultimateGame?.votes?.length || 0)) /
           2,
-      ) + (Math.random() < 0.5 ? 1 : 0) || 1;
+      ) + (Math.random() < 0.5 ? 1 : 0) || 1,
+    );
 
     // 3%かつ開催2回目以降かつ前回がMax50以上ではない場合 Maxを50 ~ 500倍にする
-    if (Math.random() < 0.03 && recentGame?.maxnum && recentGame.maxnum <= 50)
-      maxnum = Math.floor(maxnum * (50 + Math.random() * 450));
+    if (
+      Math.random() < 0.03 &&
+      recentGame?.maxnum &&
+      recentGame.maxnum.lessThanOrEqualTo(50)
+    ) {
+      maxnum = maxnum.times(new Decimal(50 + Math.random() * 450));
+      maxnum = maxnum.floor();
+    }
     // 2%かつ開催2回目以降かつ前回がMax1ではない場合 Max1
     else if (
       Math.random() < 0.02 &&
       recentGame?.maxnum &&
-      recentGame.maxnum !== 1
-    )
-      maxnum = 1;
-    // 3%かつ開催2回目以降かつ前回が無限モードではない場合 Maxを無限にする
-    if (
-      (Math.random() < 0.03 && recentGame?.maxnum && recentGame.maxnum != -1) ||
+      !recentGame.maxnum.equals(1)
+    ) {
+      maxnum = new Decimal(1);
+    }
+    // 3%かつ開催2回目以降かつ前回が無限モードではない場合 Maxを Decimal.MAX_VALUE にする
+    else if (
+      (Math.random() < 0.03 &&
+        recentGame?.maxnum &&
+        !recentGame.maxnum.equals(Decimal.MAX_VALUE)) ||
       flg?.includes('inf')
-    )
-      maxnum = -1;
+    ) {
+      maxnum = Decimal.MAX_VALUE;
+    }
 
     // 前回が2番目勝利モードでないかつ15%で2番目勝利モードになる
     let winRank =
       (recentGame?.winRank ?? 1) <= 1 &&
       this.ai.activeFactor >= 0.5 &&
-      Math.random() < (maxnum === -1 ? 0.3 : 0.15)
+      Math.random() < (maxnum.equals(Decimal.MAX_VALUE) ? 0.3 : 0.15)
         ? 2
         : 1;
 
@@ -127,17 +139,22 @@ export default class extends Module {
     if (
       ((recentGame?.winRank ?? 1) > 0 &&
         this.ai.activeFactor >= 0.5 &&
-        Math.random() < (maxnum === -1 ? 0.3 : 0.15)) ||
+        Math.random() < (maxnum.equals(Decimal.MAX_VALUE) ? 0.3 : 0.15)) ||
       flg?.includes('med')
-    )
+    ) {
       winRank = -1;
+    }
 
     // 1番目勝利モードでないかつ75%で最大数値がx倍 (x = x番目勝利モード)
-    if (maxnum > 0 && winRank != 1 && Math.random() < 0.75) maxnum = maxnum * 2;
+    if (maxnum.greaterThan(0) && winRank != 1 && Math.random() < 0.75) {
+      maxnum = maxnum.times(2);
+    }
     const now = new Date();
 
     // 今日が1/1の場合 最大値は新年の年数
-    if (now.getMonth() === 0 && now.getDate() === 1) maxnum = now.getFullYear();
+    if (now.getMonth() === 0 && now.getDate() === 1) {
+      maxnum = new Decimal(now.getFullYear());
+    }
 
     let visibility;
 
@@ -181,16 +198,21 @@ export default class extends Module {
         ) * 5;
     }
 
+    const maxnumText =
+      maxnum.equals(Decimal.MAX_VALUE) || maxnum.toString() == 'Infinity'
+        ? '上限なし'
+        : maxnum.toString();
+
     const post = await this.ai.post({
       text: !publicOnly
         ? serifs.kazutori.intro(
-            maxnum > 0 ? maxnum : '∞',
+            maxnumText,
             limitMinutes,
             winRank,
             Math.ceil((Date.now() + 1000 * 60 * limitMinutes) / 1000),
           )
         : serifs.kazutori.introPublicOnly(
-            maxnum,
+            maxnumText,
             limitMinutes,
             winRank,
             Math.ceil((Date.now() + 1000 * 60 * limitMinutes) / 1000),
@@ -252,14 +274,14 @@ export default class extends Module {
       // トリガーの公開範囲がフォロワー以下ならクールタイム２倍
       const cth = Math.max(
         (msg.friend.love >= 200
-          ? 0.5
+          ? 2
           : msg.friend.love >= 100
-            ? 1
+            ? 4
             : msg.friend.love >= 20
-              ? 2
+              ? 8
               : msg.friend.love >= 5
-                ? 3
-                : 4) * (['public', 'home'].includes(msg.visibility) ? 1 : 2),
+                ? 12
+                : 16) * (['public', 'home'].includes(msg.visibility) ? 1 : 2),
         1,
       );
 
@@ -299,7 +321,7 @@ export default class extends Module {
     //TODO : このへんのセリフをserifに移行する
     msg
       .reply(
-        '\n分かったのじゃ！数取りを開催するのじゃ！\nそなたは開催1分後から数取りへの投票を行うことができるのじゃ！\n（ダイレクトなら今すぐでも大丈夫なのじゃ！）',
+        '\n分かりました！数取りを開催します！\nあなたは開催1分後から数取りへの投票を行うことができます！\n（ダイレクトなら今すぐでも大丈夫です！）',
         { visibility: 'specified' },
       )
       .then((reply) => {
@@ -359,7 +381,7 @@ export default class extends Module {
           : msg.visibility == 'specified'
             ? 'ダイレクト'
             : msg.user.host == null
-              ? 'ローカル'
+              ? `ローカル＆フォロワー`
               : '';
 
       msg
@@ -388,62 +410,100 @@ export default class extends Module {
       };
     }
 
-    let num;
+    let num: typeof Decimal;
 
-    if (!msg.extractedText.includes('∞')) {
-      // 数字が含まれていない
-      const match = msg.extractedText
-        .replace(/[０-９]/g, (m) =>
-          '０１２３４５６７８９'.indexOf(m).toString(),
-        )
-        .match(/[0-9]+/);
-      if (match == null) {
-        msg
-          .reply('リプライの中に数字が見つからなかったのじゃ！')
-          .then((reply) => {
-            game.replyKey.push(msg.userId);
-            this.games.update(game);
-            this.subscribeReply(msg.userId, reply.id);
-          });
-        return {
-          reaction: 'hmm',
-        };
-      }
+    // 数字が含まれていない
+    const match = msg.extractedText
+      .replace(/[０-９]/g, (m) => '０１２３４５６７８９'.indexOf(m).toString())
+      .match(/[0-9]+|∞/);
+    if (match == null) {
+      msg
+        .reply('リプライの中に数字が見つからなかったのじゃ！')
+        .then((reply) => {
+          game.replyKey.push(msg.userId);
+          this.games.update(game);
+          this.subscribeReply(msg.userId, reply.id);
+        });
+      return {
+        reaction: 'hmm',
+      };
+    }
 
-      num = parseInt(match[0], 10);
-
-      if (num === Number.POSITIVE_INFINITY) {
-        num = Number.POSITIVE_INFINITY;
-      } else {
-        // 整数じゃない
-        if (!Number.isInteger(num)) {
-          msg
-            .reply('リプライの中に数字が見つからなかったのじゃ！')
-            .then((reply) => {
-              game.replyKey.push(msg.userId);
-              this.games.update(game);
-              this.subscribeReply(msg.userId, reply.id);
-            });
-          return {
-            reaction: 'hmm',
-          };
-        }
-      }
+    if (match[0] === '∞') {
+      num = new Decimal(Decimal.NUMBER_MAX_VALUE);
     } else {
-      num = Number.POSITIVE_INFINITY;
+      // 先頭のゼロを除去
+      const numStr = match[0].replace(/^0+/, '') || '0';
+
+      //21桁以上の場合
+      if (numStr.length > 20) {
+        const mantissaDigits = 3;
+        const mantissaStr = numStr.slice(0, mantissaDigits + 1);
+        let exponent = numStr.length - 1;
+        let mantissaNum = parseInt(mantissaStr.slice(0, mantissaDigits));
+        const nextDigit = parseInt(mantissaStr.charAt(mantissaDigits));
+        //繰り上げ
+        if (nextDigit >= 5) {
+          mantissaNum += 1;
+        }
+
+        if (mantissaNum >= Math.pow(10, mantissaDigits)) {
+          mantissaNum = mantissaNum / 10;
+          exponent += 1;
+        }
+
+        // 仮数を数値に変換し、正規化
+        const mantissa = mantissaNum / Math.pow(10, mantissaDigits - 1);
+
+        num = new Decimal(`${mantissa}e${exponent}`);
+      } else {
+        num = new Decimal(numStr);
+      }
+    }
+
+    /*
+				// 整数じゃない
+				if (!num.equals(num.floor())) {
+						msg.reply('リプライの中に整数が見つかりませんでした！').then(reply => {
+								game.replyKey.push(msg.userId);
+								this.games.update(game);
+								this.subscribeReply(msg.userId, reply.id);
+						});
+						return {
+								reaction: 'hmm'
+						};
+				}
+				*/
+
+    if (typeof game.maxnum == 'string') {
+      game.maxnum =
+        game.maxnum == 'Infinity'
+          ? Decimal.MAX_VALUE
+          : new Decimal(game.maxnum);
     }
 
     // 範囲外
-    if (game.maxnum > 0 && (num < 0 || num > game.maxnum)) {
-      let strn = String(num);
-      if (strn == 'Infinity') strn = '∞';
+    if (
+      game.maxnum &&
+      game.maxnum.greaterThan(0) &&
+      (num.lessThan(0) || num.greaterThan(game.maxnum))
+    ) {
+      let strn = num.equals(new Decimal(Decimal.NUMBER_MAX_VALUE))
+        ? '∞ (\\(1.8×10^{308}\\))'
+        : num.toString();
       if (strn.includes('e+')) {
+        if (strn == 'Infinity') strn = '∞ (\\(1.8×10^{308}\\))';
         strn = strn.replace(/^1e/, '');
         strn = strn.replace('e', '×');
         strn = strn.replace('+', '10^{');
         strn += '}\\)';
         strn = '\\(' + strn;
       }
+      let maxStr =
+        game.maxnum.equals(Decimal.MAX_VALUE) ||
+        game.maxnum.toString() == 'Infinity'
+          ? '∞'
+          : game.maxnum.toString();
       msg
         .reply(
           `\n「${strn}」は今回のゲームでは範囲外なのじゃ！\n0~${game.maxnum}の範囲で指定してほしいのじゃ！`,
@@ -458,7 +518,7 @@ export default class extends Module {
       };
     }
 
-    this.log(`Voted ${num} by ${msg.user.id}`);
+    this.log(`Voted ${num.toString()} by ${msg.user.id}`);
 
     // 投票
     game.votes.push({
@@ -490,7 +550,7 @@ export default class extends Module {
     }
 
     return {
-      reaction: ':neofox_heart:',
+      reaction: ':mk_discochicken:',
     };
   }
 
@@ -569,21 +629,46 @@ export default class extends Module {
     let reverse = Math.random() < (winRank === 1 ? 0.15 : 0.3);
     const now = new Date();
 
-    let useNumbers = Array.from(new Set(game.votes.map((x) => x.number))).sort(
-      (a, b) => b - a,
-    );
+    game.votes.forEach((x) => {
+      if (typeof x.number == 'string') {
+        x.number = new Decimal(x.number);
+      }
+    });
+
+    if (typeof game.maxnum == 'string') {
+      game.maxnum =
+        game.maxnum == 'Infinity'
+          ? Decimal.MAX_VALUE
+          : new Decimal(game.maxnum);
+    }
+
+    let useNumbers = Array.from(
+      new Set(game.votes.map((x) => x.number.toString())),
+    ).map((s) => new Decimal(s));
+    // 降順ソート
+    useNumbers.sort((a, b) => {
+      if (a.greaterThan(b)) return -1;
+      if (a.lessThan(b)) return 1;
+      return 0;
+    });
 
     let med;
 
     if (winRank === -1) {
-      function median(arr) {
-        let inOrderArr = arr.sort((a, b) => a - b);
-        let result;
+      function median(arr: (typeof Decimal)[]) {
+        // 昇順ソート
+        let inOrderArr = arr.slice().sort((a, b) => {
+          if (a.lessThan(b)) return -1;
+          if (a.greaterThan(b)) return 1;
+          return 0;
+        });
+        console.log(inOrderArr);
+        let result: typeof Decimal;
+        if (inOrderArr.length === 0) return -1;
         if (inOrderArr.length % 2 === 0) {
-          result =
-            (inOrderArr[inOrderArr.length / 2 - 1] +
-              inOrderArr[inOrderArr.length / 2]) /
-            2;
+          result = inOrderArr[inOrderArr.length / 2 - 1]
+            .plus(inOrderArr[inOrderArr.length / 2])
+            .dividedBy(2);
         } else {
           result = inOrderArr[(inOrderArr.length + 1) / 2 - 1];
         }
@@ -592,7 +677,7 @@ export default class extends Module {
       med = median(
         useNumbers.filter((n) => {
           const users = game.votes
-            .filter((x) => x.number == n)
+            .filter((x) => x.number.equals(n))
             .map((x) => x.user);
           return users.length == 1;
         }),
@@ -602,23 +687,27 @@ export default class extends Module {
     // 正常
     for (let i = 0; i < useNumbers.length; i++) {
       const n = useNumbers[i];
-      let strn = String(n);
-      if (strn == 'Infinity') strn = '∞';
+      let strn = n.equals(new Decimal(Decimal.NUMBER_MAX_VALUE))
+        ? '∞ (\\(1.8×10^{308}\\))'
+        : n.toString();
       if (strn.includes('e+')) {
+        if (strn == 'Infinity') strn = '∞ (\\(1.8×10^{308}\\))';
         strn = strn.replace(/^1e/, '');
         strn = strn.replace('e', '×');
         strn = strn.replace('+', '10^{');
         strn += '}\\)';
         strn = '\\(' + strn;
       }
-      const users = game.votes.filter((x) => x.number == n).map((x) => x.user);
+      const users = game.votes
+        .filter((x) => x.number.equals(n))
+        .map((x) => x.user);
 
       if (users.length == 1) {
         if (winner == null) {
           if (winRank == -1) {
-            if (n === med) {
+            if (n.equals(med)) {
               winner = users[0];
-              const icon = n == 100 ? '💯' : n == 0 ? '0️⃣' : '🎉';
+              const icon = n.equals(100) ? '💯' : n.equals(0) ? '0️⃣' : '🎉';
               results.push(`${icon} **${strn}**: $[jelly ${acct(users[0])}]`);
             } else {
               results.push(`➖ ${strn}: ${acct(users[0])}`);
@@ -628,7 +717,7 @@ export default class extends Module {
             results.push(`➖ ${strn}: ${acct(users[0])}`);
           } else {
             winner = users[0];
-            const icon = n == 100 ? '💯' : n == 0 ? '0️⃣' : '🎉';
+            const icon = n.equals(100) ? '💯' : n.equals(0) ? '0️⃣' : '🎉';
             results.push(`${icon} **${strn}**: $[jelly ${acct(users[0])}]`);
           }
         } else {
@@ -639,13 +728,20 @@ export default class extends Module {
       }
     }
     if (winRank != -1) {
-      useNumbers.reverse();
+      // 昇順ソート
+      useNumbers.sort((a, b) => {
+        if (a.lessThan(b)) return -1;
+        if (a.greaterThan(b)) return 1;
+        return 0;
+      });
       // 反転
       for (let i = 0; i < useNumbers.length; i++) {
         const n = useNumbers[i];
-        let strn = String(n);
-        if (strn == 'Infinity') strn = '∞';
+        let strn = n.equals(new Decimal(Decimal.NUMBER_MAX_VALUE))
+          ? '∞ (\\(1.8×10^{308}\\))'
+          : n.toString();
         if (strn.includes('e+')) {
+          if (strn == 'Infinity') strn = '∞ (\\(1.8×10^{308}\\))';
           strn = strn.replace(/^1e/, '');
           strn = strn.replace('e', '×');
           strn = strn.replace('+', '10^{');
@@ -653,7 +749,7 @@ export default class extends Module {
           strn = '\\(' + strn;
         }
         const users = game.votes
-          .filter((x) => x.number == n)
+          .filter((x) => x.number.equals(n))
           .map((x) => x.user);
 
         if (users.length == 1) {
@@ -663,7 +759,7 @@ export default class extends Module {
               reverseResults.push(`➖ ${strn}: ${acct(users[0])}`);
             } else {
               reverseWinner = users[0];
-              const icon = n == 100 ? '💯' : n == 0 ? '0️⃣' : '🎉';
+              const icon = n.equals(100) ? '💯' : n.equals(0) ? '0️⃣' : '🎉';
               reverseResults.push(
                 `${icon} **${strn}**: $[jelly ${acct(users[0])}]`,
               );
@@ -749,7 +845,14 @@ export default class extends Module {
       winnerFriend.save();
     }
 
-    let strmed = med != null ? String(med) : '';
+    let strmed =
+      med === -1
+        ? '有効数字なし'
+        : med != null
+          ? med.equals(new Decimal(Decimal.NUMBER_MAX_VALUE))
+            ? '∞ (\\(1.8×10^{308}\\))'
+            : med.toString()
+          : '';
     if (strmed.includes('e+')) {
       if (strmed == 'Infinity') strmed = '∞';
       strmed = strmed.replace(/^1e/, '');
@@ -758,6 +861,9 @@ export default class extends Module {
       strmed += '}\\)';
       strmed = '\\(' + strmed;
     }
+    const maxnumText = game.maxnum.equals(Decimal.MAX_VALUE)
+      ? '上限なし'
+      : game.maxnum.toString();
     const text =
       (game.winRank > 0
         ? game.winRank === 1
@@ -775,7 +881,7 @@ export default class extends Module {
             perfect,
             winnerFriend?.doc?.kazutoriData?.winCount ?? 0,
             medal && (winnerFriend?.doc?.kazutoriData?.winCount ?? 0) > 50
-              ? winnerFriend?.doc?.kazutoriData?.medal ?? 0
+              ? (winnerFriend?.doc?.kazutoriData?.medal ?? 0)
               : null,
           )
         : serifs.kazutori.finishWithNoWinner(item));
