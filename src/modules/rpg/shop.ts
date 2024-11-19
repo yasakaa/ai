@@ -672,8 +672,8 @@ export const shopItems: ShopItem[] = [
   {
     name: `わかばのお守り`,
     limit: (data) => data.skills?.length < 4,
-    price: 10,
-    desc: `所持しているスキル数が少ないほどステータスが上がります 耐久20`,
+    price: (data) => Math.max(Math.min(data.coin, 10), 1),
+    desc: `阨ちゃんの持っているスキルが5個より少ない場合（阨ちゃんのレベルが低い場合）、少ないスキル1つにつき約5%分パワー・防御が上がります 特定条件でさらにパワー・防御が+10%されます 耐久20`,
     type: 'amulet',
     effect: { beginner: 0.05 },
     durability: 20,
@@ -883,6 +883,9 @@ const eventAmulet = (data?) => {
   const y = new Date().getFullYear();
   const m = new Date().getMonth() + 1;
   const d = new Date().getDate();
+  if (y === 2024 && m === 9 && d === 11) {
+    return `虹色のお守り`;
+  }
   if (
     data?.skills?.length >= 1 &&
     data?.skills?.length <= 3 &&
@@ -1000,7 +1003,7 @@ export const shopReply = async (module: rpg, ai: 藍, msg: Message) => {
       serifs.rpg.shop.welcome(data.coin),
       ...showShopItems.map(
         (x, index) =>
-          `[${numberCharConvert(index + 1)}] ${x.name} ${x.price}個\n${x.desc}\n`,
+          `[${numberCharConvert(index + 1)}] ${x.name} ${x.price}個${x.type === 'amulet' && (x.durability ?? 0) >= 2 && aggregateTokensEffects(data).autoRepair ? ` (どんぐり/耐久: ${Math.round((x.price ?? 12) / (x.durability ?? 6)) + 1})` : ''}\n${x.desc}\n`,
       ),
     ].join('\n'),
     { visibility: 'specified' },

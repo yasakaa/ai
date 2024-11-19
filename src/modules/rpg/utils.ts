@@ -5,6 +5,7 @@ import serifs from '@/serifs';
 import rpg from './index';
 import { colorReply, colors } from './colors';
 import { aggregateTokensEffects, shopItems } from './shop';
+import { ultimateAmulet } from './skills';
 import config from '@/config';
 
 export function initializeData(module: rpg, msg) {
@@ -23,7 +24,7 @@ export function initializeData(module: rpg, msg) {
   data.items?.filter(
     (x) =>
       (x.type =
-        shopItems.find((y) => x.name === y.name)?.type ??
+        [...shopItems, ultimateAmulet].find((y) => x.name === y.name)?.type ??
         (x.skillName ? 'amulet' : 'token')),
   );
   if (data.items.filter((x) => x.type === 'amulet').length > 1) {

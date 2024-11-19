@@ -10,6 +10,8 @@ import {
   mergeSkillAmulet,
 } from './shop';
 import { deepClone, getColor } from './utils';
+import { colors, enhanceCount } from './colors';
+import config from '@/config';
 
 export let skillNameCountMap = new Map();
 export let totalSkillCount = 0;
@@ -646,6 +648,69 @@ export const skills: Skill[] = [
   },
 ];
 
+const ultimateEffect: SkillEffect = {
+  atkUp: 0.035,
+  defUp: 0.027,
+  fire: 0.009,
+  ice: 0.009,
+  thunder: 0.018,
+  spdUp: 0.009,
+  dart: 0.018,
+  light: 0.018,
+  dark: 0.009,
+  weak: 0.006,
+  notBattleBonusAtk: 0.022,
+  notBattleBonusDef: 0.022,
+  firstTurnResist: 0.03,
+  tenacious: 0.025,
+  plusActionX: 1,
+  atkDmgUp: 0.01,
+  defDmgUp: -0.01,
+  continuousBonusUp: 0.05,
+  escape: 1,
+  endureUp: 0.05,
+  haisuiUp: 0.05,
+  postXUp: 0.005,
+  enemyStatusBonus: 0.1,
+  arpen: 0.01,
+  defRndMin: -0.02,
+  defRndMax: -0.02,
+  firstTurnItem: 1,
+  firstTurnMindMinusAvoid: 1,
+  itemEquip: 0.05,
+  itemBoost: 0.055,
+  weaponBoost: 0.06,
+  armorBoost: 0.06,
+  foodBoost: 0.08,
+  poisonResist: 0.08,
+  mindMinusAvoid: 0.015,
+  poisonAvoid: 0.04,
+  abortDown: 0.03,
+  critUp: 0.02,
+  critUpFixed: 0.003,
+  critDmgUp: 0.02,
+  enemyCritDown: 0.04,
+  enemyCritDmgDown: 0.04,
+  sevenFever: 0.1,
+  charge: 0.1,
+  heavenOrHell: 0.02,
+  haisuiAtkUp: 0.004,
+  haisuiCritUp: 0.02,
+};
+
+export const ultimateAmulet = {
+  name: `究極のお守り`,
+  limit: (data) => enhanceCount(data) >= 9,
+  price: 18,
+  desc: `${config.rpgHeroName}RPGを極めたあなたに……`,
+  type: 'amulet',
+  effect: ultimateEffect,
+  durability: 6,
+  short: '究極',
+  isUsed: (data) => true,
+  always: true,
+} as AmuletItem;
+
 export const getSkill = (data) => {
   const playerSkills = data.skills.map(
     (x) => skills.find((y) => x.name === y.name) ?? x,
@@ -884,6 +949,7 @@ export const skillReply = (module: Module, ai: 藍, msg: Message) => {
     const amulet = data.items?.filter((x) => x.type === 'amulet')[0];
     const item = [
       ...shopItems,
+      ultimateAmulet,
       ...(Array.isArray(amulet.skillName)
         ? [
             mergeSkillAmulet(
@@ -906,9 +972,11 @@ export const skillReply = (module: Module, ai: 藍, msg: Message) => {
           : undefined;
     if (amulet.durability)
       amuletSkill.push(
-        `[お守り] ${amulet.skillName && !Array.isArray(amulet.skillName) ? amulet.skillName : amulet.name} 残耐久${amulet.durability}${skillInfo(skill, item.desc, aggregateTokensEffects(data).showSkillBonus)}`,
+        `[お守り] ${amulet.skillName && !Array.isArray(amulet.skillName) ? amulet.skillName : amulet.name} ${aggregateTokensEffects(data).autoRepair && (item.durability ?? 0) >= 2 ? `どんぐり消費${Math.round((amulet.price ?? 12) / (item.durability ?? 6)) + 1}` : `残耐久${amulet.durability}`}${skillInfo(skill, item.desc, aggregateTokensEffects(data).showSkillBonus)}`,
       );
   }
+
+  const skillBorders = [20, 50, 100, 170, 255];
 
   msg.reply(
     [
@@ -923,6 +991,11 @@ export const skillReply = (module: Module, ai: 藍, msg: Message) => {
         (x, index) =>
           `[${index + 1}] ${x.name}${aggregateTokensEffects(data).showSkillBonus && x.info ? `\n${x.info}` : x.desc ? `\n${x.desc}` : ''}`,
       ),
+      ...(playerSkills.length < skillBorders.length
+        ? [
+            `<small>[${playerSkills.length + 1}] このスキル枠はLvをあと${skillBorders[playerSkills.length] - data.lv}上げると使用可能になります</small>`,
+          ]
+        : []),
       ...amuletSkill,
     ]
       .filter(Boolean)
@@ -962,6 +1035,7 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
     console.log('amulet: ' + amulet.name);
     const item = [
       ...shopItems,
+      ultimateAmulet,
       ...(Array.isArray(amulet.skillName)
         ? [
             mergeSkillAmulet(
@@ -1162,6 +1236,7 @@ export function aggregateSkillsEffectsSkillX(
     console.log('amulet: ' + amulet.name);
     const item = [
       ...shopItems,
+      ultimateAmulet,
       ...(Array.isArray(amulet.skillName)
         ? [
             mergeSkillAmulet(
@@ -1374,6 +1449,7 @@ export function getSkillsShortName(data: {
   const amuletItem = amulet
     ? ([
         ...shopItems,
+        ultimateAmulet,
         ...(Array.isArray(amulet.skillName)
           ? [
               mergeSkillAmulet(
@@ -1427,6 +1503,7 @@ export function amuletMinusDurability(data: any): string {
     )[0] as AmuletItem;
     const item = [
       ...shopItems,
+      ultimateAmulet,
       ...(Array.isArray(amulet.skillName)
         ? [
             mergeSkillAmulet(
@@ -1451,13 +1528,26 @@ export function amuletMinusDurability(data: any): string {
       data.items.forEach((x) => {
         if (x.type === 'amulet') {
           if (boost <= 0 || Math.random() < 1 / Math.pow(1.5, boost * 2)) {
-            x.durability -= 1;
-            if (x.durability <= 0) {
-              data.lastBreakItem = amulet.name;
-              data.items = data.items?.filter((x) => x.type !== 'amulet');
-              ret = `${x.name}が壊れました！`;
+            const minusCoin =
+              Math.round((x.price ?? 12) / (item.durability ?? 6)) + 1;
+            if (
+              aggregateTokensEffects(data).autoRepair &&
+              (item.durability ?? 0) >= 2 &&
+              data.coin > minusCoin
+            ) {
+              data.coin -= minusCoin;
+              if (!data.shopExp) data.shopExp = 0;
+              data.shopExp += minusCoin;
+              ret = `${x.name} キレイなどんぐり-${minusCoin}`;
             } else {
-              ret = `${x.name} 残耐久${x.durability}`;
+              x.durability -= 1;
+              if (x.durability <= 0) {
+                data.lastBreakItem = amulet.name;
+                data.items = data.items?.filter((x) => x.type !== 'amulet');
+                ret = `${x.name}が壊れました！`;
+              } else {
+                ret = `${x.name} 残耐久${x.durability}`;
+              }
             }
           } else {
             ret = serifs.rpg.skill.amuletBoost;
@@ -1780,11 +1870,11 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   }
   eAtk -= 1;
   if (eAtk) {
-    result.push('敵パワー減少: ' + showNum((1 - eAtk) * 100) + '%');
+    result.push('敵パワー減少: ' + showNum(eAtk * 100) + '%');
   }
   eDef -= 1;
   if (eDef) {
-    result.push('敵防御減少: ' + showNum((1 - eDef) * 100) + '%');
+    result.push('敵防御減少: ' + showNum(eDef * 100) + '%');
   }
 
   const atkMinusMin =
@@ -2046,17 +2136,17 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   if (skillEffects.sevenFever) {
     result.push('与ダメージ７の倍数化');
     result.push(
-      `７ステータスダメージ軽減${skillEffects.sevenFever > 1 ? ` ×${showNum(skillEffects.sevenFever)}` : ''}`,
+      `７ステータスダメージ軽減${skillEffects.sevenFever != 1 ? ` ×${showNum(skillEffects.sevenFever)}` : ''}`,
     );
   }
   if (skillEffects.escape) {
     result.push(
-      `負けそうな時逃げる${skillEffects.escape > 1 ? ` ×${showNum(skillEffects.escape)}` : ''}`,
+      `負けそうな時逃げる${skillEffects.escape != 1 ? ` ×${showNum(skillEffects.escape)}` : ''}`,
     );
   }
   if (skillEffects.charge) {
     result.push(
-      `不運チャージ${skillEffects.charge > 1 ? ` ×${showNum(skillEffects.charge)}` : ''}`,
+      `不運チャージ${skillEffects.charge != 1 ? ` ×${showNum(skillEffects.charge)}` : ''}`,
     );
   }
   if (aggregateTokensEffects(data).fivespd) {
@@ -2072,11 +2162,13 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   }
   if (skillEffects.slowStart) {
     result.push(
-      `スロースタート${(skillEffects.slowStart ?? 0) > 1 ? ` ×${showNum(skillEffects.slowStart)}` : ''}`,
+      `スロースタート${(skillEffects.slowStart ?? 0) != 1 ? ` ×${showNum(skillEffects.slowStart)}` : ''}`,
     );
   }
   if (skillEffects.plusActionX) {
-    result.push('通常時高速RPG: +' + showNum(skillEffects.plusActionX ?? 0));
+    result.push(
+      '通常時RPG進行数: ×' + (showNum(skillEffects.plusActionX ?? 0) + 1),
+    );
   }
   const boost = data.skills
     ? (data.skills

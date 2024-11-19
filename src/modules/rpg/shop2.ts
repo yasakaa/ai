@@ -14,11 +14,13 @@ import {
   skillPower,
   aggregateSkillsEffects,
   countDuplicateSkillNames,
+  ultimateAmulet,
 } from './skills';
 import { getVal, initializeData, deepClone, numberCharConvert } from './utils';
 import 藍 from '@/ai';
 import rpg from './index';
 import {
+  aggregateTokensEffects,
   AmuletItem,
   BaseItem,
   Item,
@@ -69,56 +71,6 @@ export const skillPrice = (
           : rand < 0.9
             ? Math.floor(price * 1.5)
             : 12 * 12;
-};
-
-const ultimateEffect: SkillEffect = {
-  atkUp: 0.035,
-  defUp: 0.027,
-  fire: 0.009,
-  ice: 0.009,
-  thunder: 0.018,
-  spdUp: 0.009,
-  dart: 0.018,
-  light: 0.018,
-  dark: 0.009,
-  weak: 0.006,
-  notBattleBonusAtk: 0.022,
-  notBattleBonusDef: 0.022,
-  firstTurnResist: 0.03,
-  tenacious: 0.025,
-  plusActionX: 1,
-  atkDmgUp: 0.01,
-  defDmgUp: -0.01,
-  continuousBonusUp: 0.05,
-  escape: 1,
-  endureUp: 0.05,
-  haisuiUp: 0.05,
-  postXUp: 0.005,
-  enemyStatusBonus: 0.1,
-  arpen: 0.01,
-  defRndMin: -0.02,
-  defRndMax: -0.02,
-  firstTurnItem: 1,
-  firstTurnMindMinusAvoid: 1,
-  itemEquip: 0.05,
-  itemBoost: 0.055,
-  weaponBoost: 0.06,
-  armorBoost: 0.06,
-  foodBoost: 0.08,
-  poisonResist: 0.08,
-  mindMinusAvoid: 0.015,
-  poisonAvoid: 0.04,
-  abortDown: 0.03,
-  critUp: 0.02,
-  critUpFixed: 0.003,
-  critDmgUp: 0.02,
-  enemyCritDown: 0.04,
-  enemyCritDmgDown: 0.04,
-  sevenFever: 0.1,
-  charge: 0.1,
-  heavenOrHell: 0.02,
-  haisuiAtkUp: 0.004,
-  haisuiCritUp: 0.02,
 };
 
 const resetCantRerollSkill = (data) => {
@@ -193,6 +145,15 @@ const canBankItems: ShopItem[] = [
     always: true,
   } as TokenItem,
   {
+    name: `修繕の札`,
+    price: 500,
+    limit: (data) => enhanceCount(data) >= 9,
+    desc: `持っているとお守りが耐久が減る代わりにキレイなどんぐりを減少させます 耐久1につき減少するどんぐり数はお守りの購入額/耐久+1です ただし、耐久が2以上あるお守りにしか効果を発揮しません`,
+    type: 'token',
+    effect: { autoRepair: true },
+    always: true,
+  } as TokenItem,
+  {
     name: `覚醒変更の札（朱）`,
     price: 50,
     desc: `覚醒時の行動回数増加と毒アイテム効果軽減を失いますが、代わりにクリティカルダメージが+35%以下の場合、+35%になり、クリティカル率（固定）+8%を得るようになります 4色のうちどれか1つしか発動しません`,
@@ -235,6 +196,7 @@ const bankItemsDesc2 = {
   しあわせのお札: 'ステータスの割合がランダムに一時的に変化しなくなる',
   超覚醒の札:
     '覚醒時の投稿数増加ボーナスを得られますが、投稿数効果上昇を失います',
+  修繕の札: '通常通り耐久が減少するようになります',
   '覚醒変更の札（朱）':
     '覚醒時の効果が行動回数増加・毒アイテム効果軽減に戻ります',
   '覚醒変更の札（橙）': '覚醒時の効果が行動回数増加に戻ります',
@@ -303,18 +265,7 @@ export const shop2Items: ShopItem[] = [
     effect: { fivespd: true },
     always: true,
   } as TokenItem,
-  {
-    name: `究極のお守り`,
-    limit: (data) => enhanceCount(data) >= 9,
-    price: 18,
-    desc: `${config.rpgHeroName}RPGを極めたあなたに……`,
-    type: 'amulet',
-    effect: ultimateEffect,
-    durability: 6,
-    short: '究極',
-    isUsed: (data) => true,
-    always: true,
-  } as AmuletItem,
+  ultimateAmulet,
   {
     name: 'スキル複製珠',
     desc: 'スキルを変更し、既に覚えているスキルのどれかを1つ覚えます',
@@ -378,6 +329,9 @@ export const shop2Items: ShopItem[] = [
   },
   {
     name: '力の種',
+    limit: (data) =>
+      (10 - (data.atk % 10) + 7) % 10 === 0 ||
+      ((data.def % 10) - 7 + 10) % 10 === 0,
     desc: '購入時、パワー+1 防御-1',
     price: 1,
     type: 'item',
@@ -456,6 +410,9 @@ export const shop2Items: ShopItem[] = [
   },
   {
     name: '守りの種',
+    limit: (data) =>
+      (10 - (data.def % 10) + 7) % 10 === 0 ||
+      ((data.atk % 10) - 7 + 10) % 10 === 0,
     desc: '購入時、防御+1 パワー-1',
     price: 1,
     type: 'item',
@@ -566,7 +523,7 @@ export const shop2Items: ShopItem[] = [
     always: true,
   },
   {
-    name: `${config.rpgCoinName}(70個)`,
+    name: `${config.rpgCoinName}(70枚)`,
     limit: (data) =>
       (data.atkMedal ?? 0) + (data.defMedal ?? 0) + (data.itemMedal ?? 0) >= 30,
     desc: 'ショップでのアイテム購入などに使用できる通貨です',
@@ -577,7 +534,6 @@ export const shop2Items: ShopItem[] = [
     infinite: true,
     always: true,
   },
-
   {
     name: `穢根くんのチェキ`,
     limit: (data) => data.lv >= 20 && (data.jar ?? 0) === 0,
@@ -594,7 +550,6 @@ export const shop2Items: ShopItem[] = [
     desc: `やたらカッコいいポーズをしているチェキ 特に効果なし`,
     type: 'item',
     effect: (data) => (data.jar = (data.jar ?? 0) + 1),
-
     always: true,
   },
   {
@@ -760,7 +715,7 @@ export const shop2Reply = async (module: rpg, ai: 藍, msg: Message) => {
       serifs.rpg.shop.welcome2(data.coin, data.rerollOrb),
       ...showShopItems.map(
         (x, index) =>
-          `[${numberCharConvert(index + 1)}] ${x.name} ${x.orb ? '**変更珠** ' : ''}${x.price}${x.orb ? '個' : '個'}\n${x.desc}\n`,
+          `[${numberCharConvert(index + 1)}] ${x.name} ${x.orb ? '**変更珠** ' : ''}${x.price}${x.orb ? '個' : '個'}${x.type === 'amulet' && (x.durability ?? 0) >= 2 && aggregateTokensEffects(data).autoRepair ? ` (どんぐり/耐久: ${Math.round((x.price ?? 12) / (x.durability ?? 6)) + 1})` : ''}\n${x.desc}\n`,
       ),
     ].join('\n'),
     { visibility: 'specified' },
