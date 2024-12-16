@@ -85,6 +85,7 @@ export default class extends Module {
       });
     }
   }
+
   private async fetchFilteredArticles(
     count: number,
   ): Promise<Article[] | null> {
@@ -96,6 +97,8 @@ export default class extends Module {
       rnlimit: count.toString(),
       rnnamespace: '0',
     });
+
+    const excludedCategories = ['女優']; // 手動で設定する除外カテゴリ名リスト
 
     try {
       const articles: Article[] = [];
@@ -111,15 +114,45 @@ export default class extends Module {
 
           // タイトルにNGワードが含まれているか確認
           const isSafeTitle = checkNgWord(title);
-          if (isSafeTitle) {
-            articles.push({
-              title,
-              url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(title)}`,
-            });
+          if (!isSafeTitle) continue;
 
-            // 取得した記事が目標の数に達したらループを抜ける
-            if (articles.length >= count) break;
-          }
+          // カテゴリ情報を取得
+          const categoryResponse = await fetch(
+            `${URL}?${new URLSearchParams({
+              action: 'query',
+              format: 'json',
+              titles: title,
+              prop: 'categories',
+            }).toString()}`,
+          );
+          const categoryData = await categoryResponse.json();
+
+          // 型を明示して `page` の内容を安全に取得
+          const pages = categoryData.query.pages as Record<
+            string,
+            { categories?: { title: string }[] }
+          >;
+          const page = Object.values(pages)[0];
+          const categories =
+            page.categories?.map((cat) => cat.title.replace('カテゴリ:', '')) ||
+            [];
+
+          // 除外カテゴリまたはNGワードカテゴリの確認
+          const hasExcludedCategory = categories.some(
+            (cat) =>
+              excludedCategories.some((excluded) => cat.includes(excluded)) ||
+              ngword.some((ng) => cat.includes(ng)), // NGワードと照合
+          );
+          if (hasExcludedCategory) continue;
+
+          // 有効な記事として追加
+          articles.push({
+            title,
+            url: `https://ja.wikipedia.org/wiki/${encodeURIComponent(title)}`,
+          });
+
+          // 取得した記事が目標の数に達したらループを抜ける
+          if (articles.length >= count) break;
         }
       }
 
