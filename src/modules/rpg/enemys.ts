@@ -6,6 +6,7 @@ import rpg from './index';
 import serifs from '@/serifs';
 import { aggregateTokensEffects } from './shop';
 import { acct } from '@/utils/acct';
+import config from '@/config';
 
 export type Enemy = {
   /** 内部ID ユニークでなければならない */
@@ -101,6 +102,12 @@ export type RaidEnemy = Enemy & {
   pattern?: number;
   /** 全力の一撃の最大ダメージを指定 */
   maxLastDmg?: number;
+  /** 参加者募集時のメッセージを指定 */
+  introMsg?: (enemyName: string, time: number) => string;
+  /** ダメージのメッセージを指定 */
+  scoreMsg?: string;
+  /** ダメージの単位を指定 */
+  scoreMsg2?: string;
 };
 
 /** 敵一覧 */
@@ -1383,6 +1390,28 @@ export const raidEnemys: RaidEnemy[] = [
     defx: 1,
     power: 15,
     pattern: 2,
+  },
+  {
+    name: ':hatoguruma:',
+    introMsg: (enemyName, time) =>
+      `<center>$[x3 ${enemyName}]\n\n鳩車コンテスト開催中！\n\n誰が最も綺麗な鳩車を作れるかのう？\n\nこの投稿に「参加」と返信して、いっしょに挑戦しようぞ！\n(RPGモードのプレイが1回以上必要です)\n\n$[unixtime.countdown ${time}]</center>`,
+    scoreMsg: '点数',
+    scoreMsg2: '点',
+    msg: ':hatoguruma:作成コンテストに出るようだ。',
+    short: '',
+    mark: '☆',
+    mark2: '★',
+    lToR: false,
+    atkmsg: (dmg) => `阨ちゃんは鳩車を作った！\n完成度: ${dmg}`,
+    defmsg: (dmg) => ``,
+    winmsg: '',
+    losemsg: '',
+    atk: 1,
+    def: 1,
+    atkx: 1,
+    defx: 1,
+    power: 0,
+    pattern: 3,
   },
 ];
 

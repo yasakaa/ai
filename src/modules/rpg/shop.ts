@@ -271,6 +271,17 @@ export const shopItems: ShopItem[] = [
     always: true,
   },
   {
+    name: `おおみそかチャレンジの札`,
+    limit: (data) =>
+      new Date().getMonth() === 11 &&
+      !data.items.filter((x) => x.name === 'おおみそかチャレンジの札').length,
+    price: 1,
+    desc: `大晦日のレイド時、体力が1で開始しますが与えるダメージが25%増加します 自身の与えたダメージによって、追加でどんぐりを得ます`,
+    type: 'token',
+    effect: { oomisoka: true },
+    always: true,
+  },
+  {
     name: 'スキル変更珠',
     desc: 'スキルを変更するのに必要なアイテムです',
     limit: (data) =>
@@ -883,8 +894,32 @@ const eventAmulet = (data?) => {
   const y = new Date().getFullYear();
   const m = new Date().getMonth() + 1;
   const d = new Date().getDate();
-  if (y === 2024 && m === 9 && d === 11) {
-    return `虹色のお守り`;
+  if (y === 2024 && m === 12 && d === 24) {
+    return [`氷属性剣攻撃`, `光属性剣攻撃`, `伝説`, `道具大好き`];
+  }
+  if (y === 2024 && m === 12 && d === 25) {
+    return [
+      '７フィーバー！',
+      '天国か地獄か',
+      `気合で頑張る`,
+      `${serifs.rpg.status.pen}+10%`,
+    ];
+  }
+  if (y === 2024 && m === 12 && d === 26) {
+    return [
+      `闇属性剣攻撃`,
+      `毒属性剣攻撃`,
+      `すぐ決死の覚悟をする`,
+      `不運チャージ`,
+    ];
+  }
+  if (y === 2024 && m === 12 && d === 27) {
+    return [
+      `闇属性剣攻撃`,
+      `毒属性剣攻撃`,
+      `すぐ決死の覚悟をする`,
+      `不運チャージ`,
+    ];
   }
   if (
     data?.skills?.length >= 1 &&

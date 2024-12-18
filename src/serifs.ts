@@ -501,9 +501,14 @@ export default {
       `<center>$[x3 ${enemyName}]\n\nすごく大きい敵がやってきたのじゃ！\n\nこのままだと村が\n滅びてしまうのじゃ…\n皆で力を合わせて鎮めようぞ！\n\nこの投稿に返信して\n一緒に戦ってほしいのじゃ！\n(参加条件:RPGモードを遊んだ経験がある)\n\n</center>`,
     onagare: (enemyName) =>
       `${enemyName}は暴れまわったのち、帰っていったのじゃ……`,
+    onagare2: (enemyName) =>
+      `${enemyName}コンテストの参加者はいなかったのじゃ……`,
     finishCw: (enemyName) => `${enemyName}討滅戦の結果発表なのじゃ！`,
+    finishCw2: (enemyName) => `${enemyName}コンテストの結果発表なのじゃ！`,
     finish: (enemyName, score) =>
       `みなのお陰で${enemyName}を鎮めることができたのじゃ！\nありがとうなのじゃ！\nお礼にみなにキレイなどんぐりを${score}個プレゼントしちゃうのじゃ！\nまたよろしく頼むぞ！`,
+    finish2: (enemyName, score) =>
+      `${enemyName}コンテストへの参加ありがとうなのじゃ！\n参加賞としてみなの者に${config.rpgCoinName}を${score}個プレゼントしつあいｍｐか！\n「RPG ショップ」で買い物に使うとよいかもしれんのう！\nまたよろしく頼むぞ！`,
     finalAttack: (dmg) =>
       `阨ちゃんの全力の一撃！\n${dmg}ポイントのダメージを与えた！`,
     timeUp: (enemyName, maxHp) =>
@@ -605,6 +610,9 @@ export default {
       '\n\nショップに新しいアイテムが追加されたようじゃ……\n「RPG ショップ」で確認してみるとよいぞ！',
     forcePostCount:
       '周囲に不思議な力が働いている…\n投稿数ボーナスが無効になった！',
+    oomisoka: '大晦日チャレンジ開始！\n体力が1になった！',
+    oomisokaEnd: (score, num) =>
+      `大晦日チャレンジ結果！\n評価: ★${score}\n${config.rpgCoinName}を${num}個ゲット！`,
     skillX: (num) =>
       `$[x2 :blobharrypotter:]\n\nきみに魔法をかけてあげるよ！\n\n強化魔法で阨ちゃんのスキルの\n効果が${num}倍になった！`,
     draw: 'あいこになった！\nお互いにダメージなし！',
