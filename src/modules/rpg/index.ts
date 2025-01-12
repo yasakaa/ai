@@ -456,7 +456,7 @@ export default class extends Module {
     const allData = this.ai.friends.find();
 
     const createRankMessage = (
-      score: number,
+      score: number | null,
       label: string,
       dataKey: string,
       options?: { prefix?: string; suffix?: string; addValue?: number },
@@ -479,120 +479,178 @@ export default class extends Module {
 
       values.sort((a, b) => b - a); // 降順でソート
 
-      // 同順位の人数を計算
-      const sameRankCount = values.filter((v) => v === score).length;
+      if (score != null) {
+        // 同順位の人数を計算
+        const sameRankCount = values.filter((v) => v === score).length;
 
-      // ランキングの計算には元のスコアを使用
-      const rank = values.indexOf(score) + 1;
-      let rankmsg = '';
+        // ランキングの計算には元のスコアを使用
+        const rank = values.indexOf(score) + 1;
+        let rankmsg = '';
 
-      if (rank === 0) {
-        rankmsg = '？'; // 順位が見つからなかった場合
-      } else {
-        // 10位以内の場合の順位表示
-        if (rank <= 10) {
-          rankmsg = `${rank === 1 ? '👑' : '🎖️'}${rank}位`;
+        if (rank === 0) {
+          rankmsg = '？'; // 順位が見つからなかった場合
         } else {
-          const total = values.length;
-          const percentage = (rank / total) * 100;
-
-          if (percentage < 50) {
-            rankmsg = `${percentage < 10 ? '🥈' : percentage < 35 ? '🥉' : ''}上位${percentage.toFixed(1)}%`;
+          // 10位以内の場合の順位表示
+          if (rank <= 10) {
+            rankmsg = `${rank === 1 ? '👑' : '🎖️'}${rank}位`;
           } else {
-            const surpassedCount = total - rank - (sameRankCount - 1); // 同順位の人数を考慮
-            if (surpassedCount > 0 || sameRankCount > 1) {
-              rankmsg = `${surpassedCount}人超え`;
+            const total = values.length;
+            const percentage = (rank / total) * 100;
+
+            if (percentage < 50) {
+              rankmsg = `${percentage < 10 ? '🥈' : percentage < 35 ? '🥉' : ''}上位${percentage.toFixed(1)}%`;
             } else {
-              rankmsg = ``;
+              const surpassedCount = total - rank - (sameRankCount - 1); // 同順位の人数を考慮
+              if (surpassedCount > 0 || sameRankCount > 1) {
+                rankmsg = `${surpassedCount}人超え`;
+              } else {
+                rankmsg = ``;
+              }
             }
+          }
+
+          // 同順位の表記を追加
+          if (sameRankCount > 1) {
+            rankmsg += `（同順位：${sameRankCount - 1}人）`;
+          } else if (rank <= 10 && rank >= 2) {
+            rankmsg += `（1位：${(values?.[0] + (options?.addValue || 0)).toLocaleString()}）`;
+          } else if (rank == 1 && values?.[1]) {
+            rankmsg += `（2位：${(values?.[1] + (options?.addValue || 0)).toLocaleString()}）`;
           }
         }
 
-        // 同順位の表記を追加
+        // 表示するスコアにだけaddValueを適用
+        const finalScoreDisplay = `${options?.prefix || ''}${(score + (options?.addValue || 0)).toLocaleString()}${options?.suffix || ''}`;
+
+        return `${label}\n${finalScoreDisplay} ${rankmsg}`;
+      } else {
+        // 同順位の人数を計算
+        const sameRankCount = values.filter((v) => v === values?.[0]).length;
+        const sameRankCount2 = values.filter((v) => v === values?.[9]).length;
+
+        let rankmsg = '';
         if (sameRankCount > 1) {
           rankmsg += `（同順位：${sameRankCount - 1}人）`;
-        } else if (rank <= 10 && rank >= 2) {
-          rankmsg += `（1位：${(values?.[0] + (options?.addValue || 0)).toLocaleString()}）`;
-        } else if (rank == 1 && values?.[1]) {
-          rankmsg += `（2位：${(values?.[1] + (options?.addValue || 0)).toLocaleString()}）`;
         }
+
+        let rankmsg2 = '';
+        if (sameRankCount2 > 1) {
+          rankmsg2 += `（同順位：${sameRankCount2 - 1}人）`;
+        }
+
+        return `${label}\n1位：${(values?.[0] + (options?.addValue || 0)).toLocaleString()} ${rankmsg}${sameRankCount < 9 ? `\n10位：${(values?.[9] + (options?.addValue || 0)).toLocaleString()} ${rankmsg2}` : ''}`;
       }
-
-      // 表示するスコアにだけaddValueを適用
-      const finalScoreDisplay = `${options?.prefix || ''}${(score + (options?.addValue || 0)).toLocaleString()}${options?.suffix || ''}`;
-
-      return `${label}\n${finalScoreDisplay} ${rankmsg}`;
     };
 
-    if (data.lv) {
-      message.push(createRankMessage(data.lv, 'Lv', 'lv'));
-    }
-
-    if (data.bestScore) {
+    if (msg.includes(['ランク'])) {
+      message.push(createRankMessage(null, 'Lv', 'lv'));
       message.push(
-        createRankMessage(data.bestScore, '最大木人ダメージ', 'bestScore', {
+        createRankMessage(null, '最大木人ダメージ', 'bestScore', {
           suffix: 'ダメージ',
         }),
       );
-    }
-
-    if (data.maxEndress) {
       message.push(
-        createRankMessage(
-          data.maxEndress,
-          '旅モード最高クリア記録',
-          'maxEndress',
-          { prefix: 'ステージ', addValue: 1 },
-        ),
-      );
-    }
-
-    if (data.maxStatusUp) {
-      message.push(
-        createRankMessage(data.maxStatusUp, '運の良さ', 'maxStatusUp', {
-          suffix: 'pts',
+        createRankMessage(null, '修行モード最高クリア記録', 'maxEndress', {
+          prefix: 'ステージ',
+          addValue: 1,
         }),
       );
-    }
-
-    if (data.jar) {
       message.push(
-        createRankMessage(data.jar, 'チェキ購入数', 'jar', { suffix: '個' }),
+        createRankMessage(null, '運の良さ', 'maxStatusUp', { suffix: 'pts' }),
       );
-    }
-
-    let totalScore = 0;
-
-    if (data.raidScore) {
-      for (const [key, value] of Object.entries(data.raidScore)) {
-        if (value && typeof value === 'number') {
-          const enemy = raidEnemys.find((x) => x.name === key);
-          const score = enemy?.power
-            ? Math.max(
-                Math.log2((value * 20) / (1024 / ((enemy.power ?? 30) / 30))) +
-                  1,
-                1,
-              )
-            : undefined;
-          if (score) totalScore += score;
-          message.push(
-            `${createRankMessage(value, key + ` 最大${enemy?.scoreMsg ?? 'ダメージ'}`, `raidScore.${key}`, { suffix: data.clearRaid?.includes(key) ? `${enemy?.scoreMsg2 ?? 'ダメージ'} ⭐️` : `${enemy?.scoreMsg2 ?? 'ダメージ'}` })}${score ? `\n★${Math.floor(score)} ${Math.floor((score % 1) * 8) !== 0 ? `$[bg.color=ffff90 ${':blank:'.repeat(Math.floor((score % 1) * 8))}]` : ''}$[bg.color=ff9090 ${':blank:'.repeat(8 - Math.floor((score % 1) * 8))}] ★${Math.floor(score) + 1}` : ''}`,
-          );
+      message.push(
+        createRankMessage(null, 'チェキ購入数', 'jar', { suffix: '枚' }),
+      );
+      if (data.raidScore) {
+        for (const [key, value] of Object.entries(data.raidScore)) {
+          if (value && typeof value === 'number') {
+            const enemy = raidEnemys.find((x) => x.name === key);
+            message.push(
+              `${createRankMessage(null, key + ` 最大${enemy?.scoreMsg ?? 'ダメージ'}`, `raidScore.${key}`, { suffix: data.clearRaid?.includes(key) ? `${enemy?.scoreMsg2 ?? 'ダメージ'} ⭐️` : `${enemy?.scoreMsg2 ?? 'ダメージ'}` })}`,
+            );
+          }
         }
       }
-      if (totalScore > 0 && Object.entries(data.raidScore).length >= 2)
-        message.push(`合計レイドボス評価値\n★${totalScore.toFixed(2)}`);
-    }
-
-    if (data.clearRaidNum) {
       message.push(
         createRankMessage(
-          data.clearRaidNum,
+          null,
           '7ターン戦ったレイドボス (⭐️)',
           'clearRaidNum',
           { suffix: '種類' },
         ),
       );
+    } else {
+      if (data.lv) {
+        message.push(createRankMessage(data.lv, 'Lv', 'lv'));
+      }
+
+      if (data.bestScore) {
+        message.push(
+          createRankMessage(data.bestScore, '最大木人ダメージ', 'bestScore', {
+            suffix: 'ダメージ',
+          }),
+        );
+      }
+
+      if (data.maxEndress) {
+        message.push(
+          createRankMessage(
+            data.maxEndress,
+            '修行モード最高クリア記録',
+            'maxEndress',
+            { prefix: 'ステージ', addValue: 1 },
+          ),
+        );
+      }
+
+      if (data.maxStatusUp) {
+        message.push(
+          createRankMessage(data.maxStatusUp, '運の良さ', 'maxStatusUp', {
+            suffix: 'pts',
+          }),
+        );
+      }
+
+      if (data.jar) {
+        message.push(
+          createRankMessage(data.jar, 'チェキ購入数', 'jar', { suffix: '枚' }),
+        );
+      }
+
+      let totalScore = 0;
+
+      if (data.raidScore) {
+        for (const [key, value] of Object.entries(data.raidScore)) {
+          if (value && typeof value === 'number') {
+            const enemy = raidEnemys.find((x) => x.name === key);
+            const score = enemy?.power
+              ? Math.max(
+                  Math.log2(
+                    (value * 20) / (1024 / ((enemy.power ?? 30) / 30)),
+                  ) + 1,
+                  1,
+                )
+              : undefined;
+            if (score) totalScore += score;
+            message.push(
+              `${createRankMessage(value, key + ` 最大${enemy?.scoreMsg ?? 'ダメージ'}`, `raidScore.${key}`, { suffix: data.clearRaid?.includes(key) ? `${enemy?.scoreMsg2 ?? 'ダメージ'} ⭐️` : `${enemy?.scoreMsg2 ?? 'ダメージ'}` })}${score ? `\n★${Math.floor(score)} ${Math.floor((score % 1) * 8) !== 0 ? `$[bg.color=ffff90 ${':blank:'.repeat(Math.floor((score % 1) * 8))}]` : ''}$[bg.color=ff9090 ${':blank:'.repeat(8 - Math.floor((score % 1) * 8))}] ★${Math.floor(score) + 1}` : ''}`,
+            );
+          }
+        }
+        if (totalScore > 0 && Object.entries(data.raidScore).length >= 2)
+          message.push(`合計レイドボス評価値\n★${totalScore.toFixed(2)}`);
+      }
+
+      if (data.clearRaidNum) {
+        message.push(
+          createRankMessage(
+            data.clearRaidNum,
+            '7ターン戦ったレイドボス (⭐️)',
+            'clearRaidNum',
+            { suffix: '種類' },
+          ),
+        );
+      }
     }
 
     if (message.length === 0) return { reaction: 'confused' };
@@ -666,7 +724,10 @@ export default class extends Module {
       }
     }
     if (msg.includes(['startRaid'])) {
-      start(undefined, msg.includes(['recent']) ? 'r' : '');
+      start(
+        undefined,
+        msg.includes(['recent']) ? 'r' : msg.includes(['hato']) ? 'h' : '',
+      );
       return { reaction: 'love' };
     }
     if (msg.includes(['dataFix'])) {
@@ -1445,11 +1506,25 @@ export default class extends Module {
     let sevenFever = skillEffects.sevenFever
       ? calcSevenFever([data.lv, data.atk, data.def]) * skillEffects.sevenFever
       : 0;
-    if (sevenFever) {
+
+    // 修行の成果
+    const upStats = (data.lv - 384) / 3;
+    if (
+      data.lv > 384 &&
+      data.enemy.name === endressEnemy(data).name &&
+      sevenFever < upStats
+    ) {
       buff += 1;
-      message += serifs.rpg.skill.sevenFever(sevenFever) + '\n';
-      atk = atk * (1 + sevenFever / 100);
-      def = def * (1 + sevenFever / 100);
+      message += serifs.rpg.lvBonus(Math.ceil(upStats)) + '\n';
+      atk = atk * (1 + upStats / 100);
+      def = def * (1 + upStats / 100);
+    } else {
+      if (sevenFever) {
+        buff += 1;
+        message += serifs.rpg.skill.sevenFever(sevenFever) + '\n';
+        atk = atk * (1 + sevenFever / 100);
+        def = def * (1 + sevenFever / 100);
+      }
     }
 
     // spdが低い場合、確率でspdが+1。
