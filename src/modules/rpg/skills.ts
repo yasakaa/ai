@@ -52,10 +52,28 @@ export function skillCalculate(_ai: 藍 = ai) {
 }
 
 export type SkillEffect = {
-  /** パワーがn%上昇 */
+  /** パワーがn%上昇 （グループ１） */
   atkUp?: number;
-  /** 防御がn%上昇 */
+  /** パワーがn%上昇 （グループ２） */
+  atkUp2?: number;
+  /** パワーがn%上昇 （グループ３） */
+  atkUp3?: number;
+  /** パワーがn%上昇 （グループ４） */
+  atkUp4?: number;
+  /** パワーがn%上昇 （グループ５） */
+  atkUp5?: number;
+  /** パワーがn%上昇 （グループ６） */
+  atkUp6?: number;
+  /** 防御がn%上昇 （グループ１） */
   defUp?: number;
+  /** 防御がn%上昇 （グループ２） */
+  defUp2?: number;
+  /** 防御がn%上昇 （グループ３） */
+  defUp3?: number;
+  /** 防御がn%上昇 （グループ４） */
+  defUp4?: number;
+  /** 防御がn%上昇 （グループ５） */
+  defUp5?: number;
   /** 炎：戦闘時、Lvのn%をダメージに加算 */
   fire?: number;
   /** 氷：戦闘時、n%で敵のターンをスキップ */
@@ -84,10 +102,14 @@ export type SkillEffect = {
   plusActionX?: number;
   /** -n時間分RPGを先取り */
   rpgTime?: number;
-  /** 与ダメージをn%上昇 */
+  /** 与ダメージをn%上昇 （グループ１） */
   atkDmgUp?: number;
-  /** 被ダメージをn%上昇 */
+  /** 与ダメージをn%上昇 （グループ２） */
+  atkDmgUp2?: number;
+  /** 被ダメージをn%上昇（グループ１） */
   defDmgUp?: number;
+  /** 被ダメージをn%上昇（グループ２） */
+  defDmgUp2?: number;
   /** 連続ボーナスの効果をn%上昇 */
   continuousBonusUp?: number;
   /** 敗北時に逃走を行う */
@@ -205,6 +227,8 @@ export type Skill = {
   moveTo?: string;
   /** スキル変更が出来ない場合 */
   cantReroll?: boolean;
+  /** 自然習得しないスキルの場合 */
+  notLearn?: boolean;
   /** お守りとして出ない場合 */
   skillOnly?: boolean;
 };
@@ -290,6 +314,69 @@ export const skills: Skill[] = [
     effect: { dark: 0.09 },
   },
   {
+    name: `炎属性妖術＋`,
+    short: '**炎**',
+    desc: `戦闘時、最低ダメージが大きく上昇します`,
+    info: `戦闘時、Lvの15%がダメージに固定加算\n非戦闘時、${serifs.rpg.status.atk}+Lvの58%\n火曜日に全ての効果量が66%アップ`,
+    effect: { fire: 0.15 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `氷属性妖術＋`,
+    short: '**氷**',
+    desc: `戦闘時、たまに敵を凍らせます`,
+    info: `戦闘時、15%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+15%\n水曜日に全ての効果量が66%アップ`,
+    effect: { ice: 0.15 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `雷属性妖術＋`,
+    short: '**雷**',
+    desc: `戦闘時、連続攻撃をすればダメージが上がります`,
+    info: `(現在攻撃数/最大攻撃数)×30%のダメージ上昇を得る\n日曜日に全ての効果量が66%アップ`,
+    effect: { thunder: 0.3 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `風属性妖術＋`,
+    short: '**風**',
+    desc: `戦闘時、たまに行動回数が上がります`,
+    info: `戦闘時、15%で行動回数が2倍\n非戦闘時、${serifs.rpg.status.atk}+15%\n木曜日に全ての効果量が66%アップ`,
+    effect: { spdUp: 0.15 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `土属性妖術＋`,
+    short: '**土**',
+    desc: `戦闘時、最大ダメージが上昇します`,
+    info: `戦闘時かつ最大ダメージ制限がある場合、その制限を30%増加\n非戦闘時、${serifs.rpg.status.atk}+15%\n土曜日に全ての効果量が66%アップ`,
+    effect: { dart: 0.3 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `光属性妖術＋`,
+    short: '**光**',
+    desc: `戦闘時、たまに敵の攻撃力を下げます`,
+    info: `戦闘時、30%でダメージカット50%\nそれ以外の場合、${serifs.rpg.status.def}+15%\n金曜日に全ての効果量が66%アップ`,
+    effect: { light: 0.3 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
+    name: `闇属性妖術＋`,
+    short: '**闇**',
+    desc: `戦闘時、たまに敵の周辺に高重力領域を発生させます`,
+    info: `戦闘時、15%で敵の現在HPの半分のダメージ（レイドでは150ダメージ）を与える\n行動回数が2回以上の敵に30%で行動回数を1にする\nそれ以外の場合、${serifs.rpg.status.def}+10.5%\n月曜日に全ての効果量が66%アップ`,
+    effect: { dark: 0.15 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
     name: `毒属性妖術`,
     short: '毒',
     desc: `戦闘時、ターン経過ごとに相手が弱体化します`,
@@ -345,7 +432,7 @@ export const skills: Skill[] = [
     short: '★',
     desc: `パワー・防御が7%上がります`,
     info: `ステータス+7% 重複しない`,
-    effect: { atkUp: 0.07, defUp: 0.07 },
+    effect: { atkUp2: 0.07, defUp2: 0.07 },
     unique: 'legend',
   },
   {
@@ -381,15 +468,15 @@ export const skills: Skill[] = [
     short: '気',
     desc: `パワー・防御が少し上がり、気合耐えの確率が上がります`,
     info: `ステータス+4% 気合耐え確率+50%`,
-    effect: { atkUp: 0.04, defUp: 0.04, endureUp: 0.5 },
+    effect: { atkUp3: 0.04, defUp3: 0.04, endureUp: 0.5 },
   },
   {
     name: `すぐ決死の覚悟をする`,
     short: '決',
-    desc: `決死の覚悟の発動条件が緩くなり、効果量が上がります さらに決死の覚悟発動時、追加でパワーとクリティカル率が上がります`,
-    info: `${serifs.rpg.status.atk}+8% 覚悟発動条件効果量+50% 覚悟発動時${serifs.rpg.status.atk}+4% クリティカル率1.2倍`,
+    desc: `決死の覚悟の発動条件が緩くなり、効果量が上がります さらに決死の覚悟発動時、追加で与ダメージとクリティカル率が上がります`,
+    info: `与ダメージ+8% 覚悟発動条件効果量+50%\n覚悟発動時与ダメージ+4% クリティカル率1.2倍`,
     effect: {
-      atkUp: 0.08,
+      atkDmgUp2: 0.08,
       haisuiUp: 0.5,
       haisuiAtkUp: 0.04,
       haisuiCritUp: 0.2,
@@ -581,7 +668,7 @@ export const skills: Skill[] = [
     short: 'Ｃ',
     desc: `不運だった場合、次回幸運になりやすくなります`,
     info: `ステータス+5% 低乱数を引いた時、次回以降に高乱数を引きやすくなる`,
-    effect: { atkUp: 0.05, defUp: 0.05, charge: 1 },
+    effect: { atkUp4: 0.05, defUp4: 0.05, charge: 1 },
   },
   {
     name: `お守り整備`,
@@ -611,7 +698,7 @@ export const skills: Skill[] = [
     short: '荒',
     desc: `戦闘が得意になりますが、戦闘以外の効率が大きく下がります`,
     info: `${serifs.rpg.status.atk}+25% 非戦闘時、${serifs.rpg.status.atk}-40%`,
-    effect: { atkUp: 0.25, notBattleBonusAtk: -0.4 },
+    effect: { atkUp5: 0.25, notBattleBonusAtk: -0.4 },
     unique: 'mind',
   },
   {
@@ -619,7 +706,7 @@ export const skills: Skill[] = [
     short: '穏',
     desc: `戦闘以外の効率がとても上がりますが、戦闘が苦手になります`,
     info: `${serifs.rpg.status.atk}-25% 非戦闘時、${serifs.rpg.status.atk}+70%`,
-    effect: { atkUp: -0.25, notBattleBonusAtk: 0.7 },
+    effect: { atkUp5: -0.25, notBattleBonusAtk: 0.7 },
     unique: 'mind',
   },
   {
@@ -627,7 +714,7 @@ export const skills: Skill[] = [
     short: '軽',
     desc: `ステータスが上がり、お守りを持っていない時、追加で${serifs.rpg.status.atk}がさらに上がります`,
     info: `ステータス+5% お守りを持っていない時、追加で${serifs.rpg.status.atk}+4%`,
-    effect: { atkUp: 0.05, defUp: 0.05, noAmuletAtkUp: 0.04 },
+    effect: { atkUp6: 0.05, defUp5: 0.05, noAmuletAtkUp: 0.04 },
     skillOnly: true,
   },
   {
@@ -718,6 +805,7 @@ export const getSkill = (data) => {
   // フィルタリングされたスキルの配列を作成
   const filteredSkills = skills.filter(
     (x) =>
+      !x.notLearn &&
       !x.moveTo &&
       (!x.cantReroll || !playerSkills?.some((y) => y.cantReroll)) &&
       !playerSkills
@@ -761,6 +849,7 @@ export const getRerollSkill = (data, oldSkillName = '') => {
   // フィルタリングされたスキルの配列を作成
   const filteredSkills = skills.filter(
     (x) =>
+      !x.notLearn &&
       !x.moveTo &&
       !x.cantReroll &&
       x.name != oldSkillName &&
@@ -972,7 +1061,7 @@ export const skillReply = (module: Module, ai: 藍, msg: Message) => {
           : undefined;
     if (amulet.durability)
       amuletSkill.push(
-        `[お守り] ${amulet.skillName && !Array.isArray(amulet.skillName) ? amulet.skillName : amulet.name} ${aggregateTokensEffects(data).autoRepair && (item.durability ?? 0) >= 2 ? `どんぐり消費${Math.round((amulet.price ?? 12) / (item.durability ?? 6)) + 1}` : `残耐久${amulet.durability}`}${skillInfo(skill, item.desc, aggregateTokensEffects(data).showSkillBonus)}`,
+        `[お守り] ${amulet.skillName && !Array.isArray(amulet.skillName) ? amulet.skillName : amulet.name} ${aggregateTokensEffects(data).autoRepair && (item.durability ?? 0) >= 2 && amulet.durability <= 1 ? `どんぐり消費${Math.round((amulet.price ?? 12) / (item.durability ?? 6)) + 1}` : `残耐久${amulet.durability}`}${skillInfo(skill, item.desc, aggregateTokensEffects(data).showSkillBonus)}`,
       );
   }
 
@@ -1109,8 +1198,27 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
 
   const day = new Date().getDay();
 
-  aggregatedEffect.atkUp = 1 + (aggregatedEffect.atkUp ?? 0);
-  aggregatedEffect.defUp = 1 + (aggregatedEffect.defUp ?? 0);
+  aggregatedEffect.atkUp =
+    (1 + (aggregatedEffect.atkUp ?? 0)) *
+    (1 + (aggregatedEffect.atkUp2 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp3 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp4 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp5 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp6 ?? 0));
+  aggregatedEffect.defUp =
+    (1 + (aggregatedEffect.defUp ?? 0)) *
+    (1 + (aggregatedEffect.defUp2 ?? 0)) *
+    (1 + (aggregatedEffect.defUp3 ?? 0)) *
+    (1 + (aggregatedEffect.defUp4 ?? 0)) *
+    (1 + (aggregatedEffect.defUp5 ?? 0));
+  aggregatedEffect.atkDmgUp =
+    (1 + (aggregatedEffect.atkDmgUp ?? 0)) *
+      (1 + (aggregatedEffect.atkDmgUp2 ?? 0)) -
+    1;
+  aggregatedEffect.defDmgUp =
+    (1 + (aggregatedEffect.defDmgUp ?? 0)) *
+      (1 + (aggregatedEffect.defDmgUp2 ?? 0)) -
+    1;
 
   if (data.itemMedal) {
     aggregatedEffect.itemEquip =
@@ -1130,11 +1238,11 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
     aggregatedEffect.atkUp =
       (aggregatedEffect.atkUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.1));
+        (alwaysSuper || !data.raid ? 1 : 1.12));
     aggregatedEffect.defUp =
       (aggregatedEffect.defUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.1));
+        (alwaysSuper || !data.raid ? 1 : 1.12));
   }
 
   if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {
@@ -1298,7 +1406,7 @@ export function aggregateSkillsEffectsSkillX(
       : _skill;
     const __skill = deepClone(skill);
     if (__skill.unique) {
-      uniqueX = uniqueX * (1 + 0.05 * (skillX - 1));
+      uniqueX = uniqueX * (1 + 0.06 * (skillX - 1));
     } else {
       for (const eff in __skill.effect) {
         __skill.effect[eff] = __skill.effect[eff] * skillX;
@@ -1320,8 +1428,29 @@ export function aggregateSkillsEffectsSkillX(
 
   const day = new Date().getDay();
 
-  aggregatedEffect.atkUp = (1 + (aggregatedEffect.atkUp ?? 0)) * uniqueX;
-  aggregatedEffect.defUp = (1 + (aggregatedEffect.defUp ?? 0)) * uniqueX;
+  aggregatedEffect.atkUp =
+    (1 + (aggregatedEffect.atkUp ?? 0)) *
+    (1 + (aggregatedEffect.atkUp2 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp3 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp4 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp5 ?? 0)) *
+    (1 + (aggregatedEffect.atkUp6 ?? 0)) *
+    uniqueX;
+  aggregatedEffect.defUp =
+    (1 + (aggregatedEffect.defUp ?? 0)) *
+    (1 + (aggregatedEffect.defUp2 ?? 0)) *
+    (1 + (aggregatedEffect.defUp3 ?? 0)) *
+    (1 + (aggregatedEffect.defUp4 ?? 0)) *
+    (1 + (aggregatedEffect.defUp5 ?? 0)) *
+    uniqueX;
+  aggregatedEffect.atkDmgUp =
+    (1 + (aggregatedEffect.atkDmgUp ?? 0)) *
+      (1 + (aggregatedEffect.atkDmgUp2 ?? 0)) -
+    1;
+  aggregatedEffect.defDmgUp =
+    (1 + (aggregatedEffect.defDmgUp ?? 0)) *
+      (1 + (aggregatedEffect.defDmgUp2 ?? 0)) -
+    1;
 
   if (data.itemMedal) {
     aggregatedEffect.itemEquip =
@@ -1341,11 +1470,11 @@ export function aggregateSkillsEffectsSkillX(
     aggregatedEffect.atkUp =
       (aggregatedEffect.atkUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.12));
+        (alwaysSuper || !data.raid ? 1 : 1.1));
     aggregatedEffect.defUp =
       (aggregatedEffect.defUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.12));
+        (alwaysSuper || !data.raid ? 1 : 1.1));
   }
 
   if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {
@@ -1533,6 +1662,7 @@ export function amuletMinusDurability(data: any): string {
             if (
               aggregateTokensEffects(data).autoRepair &&
               (item.durability ?? 0) >= 2 &&
+              x.durability <= 1 &&
               data.coin > minusCoin
             ) {
               data.coin -= minusCoin;
@@ -1823,11 +1953,6 @@ export function getTotalEffectString(data: any, skillX = 1): string {
       '非戦闘時パワー: +' + showNum(data.lv * 3.75 * skillEffects.fire),
     );
   }
-  if (skillEffects.haisuiAtkUp) {
-    result.push(
-      '覚悟パワー: +' + showNum((skillEffects.haisuiAtkUp ?? 0) * 100) + '%',
-    );
-  }
   def -= 1;
   lDef -= 1;
   if (lDef !== def) {
@@ -1899,6 +2024,14 @@ export function getTotalEffectString(data: any, skillX = 1): string {
     } else {
       result.push('与ダメージ減少: ' + showNum(dmgBonus * -100) + '%');
     }
+  }
+
+  if (skillEffects.haisuiAtkUp) {
+    result.push(
+      '覚悟与ダメージ増加: +' +
+        showNum((skillEffects.haisuiAtkUp ?? 0) * 100) +
+        '%',
+    );
   }
 
   const atkMinRnd = Math.max(0.2 + (skillEffects.atkRndMin ?? 0), 0);

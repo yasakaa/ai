@@ -598,7 +598,7 @@ export const shop2Items: ShopItem[] = [
     always: true,
   },
   ...skills
-    .filter((x) => !x.moveTo && !x.cantReroll && !x.unique)
+    .filter((x) => !x.notLearn && !x.moveTo && !x.cantReroll && !x.unique)
     .map(
       (x): Item => ({
         name: `${x.name}の教本`,

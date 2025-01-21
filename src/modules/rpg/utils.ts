@@ -188,7 +188,9 @@ export function showStatusDmg(
         5 +
       ' ' +
       serifs.rpg.infoPercent;
-  const playerHpStr = false ? PlayerHpInfoStr : `${playerHp} / ${playerMaxHp}`;
+  const playerHpStr = false
+    ? PlayerHpInfoStr
+    : `${playerHp.toFixed(0)} / ${playerMaxHp}`;
 
   const debuff = [data.enemy?.fire ? serifs.rpg.fire + data.count : '']
     .filter(Boolean)

@@ -97,6 +97,7 @@ export const skillPrice = (
   const filteredSkills = skills.filter(
     (x) => !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly,
   );
+  const skill = skills.find((x) => x.name === skillName);
 
   // totalSkillCountにfilteredSkillsのnameに含まれるskillP.skillNameCountMapに含まれる値の合計を代入
   const totalSkillCount = filteredSkills.reduce(
@@ -107,11 +108,13 @@ export const skillPrice = (
   const price = Math.max(
     Math.floor(
       12 *
-        (Math.max(
-          isNaN(skillP.skillNameCount) ? 0 : skillP.skillNameCount,
-          0.5,
-        ) /
-          (totalSkillCount / filteredSkills.length)),
+        (skill?.notLearn
+          ? 2.5
+          : Math.max(
+              isNaN(skillP.skillNameCount) ? 0 : skillP.skillNameCount,
+              0.5,
+            ) /
+            (totalSkillCount / filteredSkills.length)),
     ),
     6,
   );
@@ -894,8 +897,92 @@ const eventAmulet = (data?) => {
   const y = new Date().getFullYear();
   const m = new Date().getMonth() + 1;
   const d = new Date().getDate();
+  const dy = new Date().getDay();
+  if (data.lv <= 255) {
+    if (dy == 0) {
+      return [
+        '雷属性妖術＋',
+        ...['高速RPG', '伝説', '連続攻撃完遂率上昇', '気合で頑張る']
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+    if (dy == 1) {
+      return [
+        '闇属性妖術＋',
+        ...[
+          '粘り強い',
+          `${serifs.rpg.status.def}アップ`,
+          '連続・毎日ボーナス強化',
+          `${serifs.rpg.status.pen}+10%`,
+        ]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+    if (dy == 2) {
+      return [
+        '炎属性妖術＋',
+        ...[
+          `${serifs.rpg.status.atk}アップ`,
+          '脳筋',
+          'すぐ決死の覚悟をする',
+          '強敵と戦うのが好き',
+        ]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+    if (dy == 3) {
+      return [
+        '氷属性妖術＋',
+        ...[
+          '毒属性妖術',
+          '慎重',
+          '負けそうなら逃げる',
+          '敵のクリティカル性能減少',
+        ]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.1 ? 4 : Math.random() < 0.5 ? 3 : 2),
+      ];
+    }
+    if (dy == 4) {
+      return [
+        '風属性妖術＋',
+        ...[
+          'テキパキこなす',
+          '道具大好き',
+          '道具の扱いが上手い',
+          '道具の選択が上手い',
+        ]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+    if (dy == 5) {
+      return [
+        '光属性妖術＋',
+        ...['油断しない', '７フィーバー！', '天国か地獄か', '不運チャージ']
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+    if (dy == 6) {
+      return [
+        '土属性妖術＋',
+        ...[
+          '疲れにくい',
+          'クリティカル性能上昇',
+          '天国か地獄か',
+          '投稿数ボーナス量アップ',
+        ]
+          .sort(() => 0.5 - Math.random())
+          .slice(0, Math.random() < 0.2 ? 3 : 2),
+      ];
+    }
+  }
   if (y === 2024 && m === 12 && d === 24) {
-    return [`氷属性剣攻撃`, `光属性剣攻撃`, `伝説`, `道具大好き`];
+    return [`氷属性妖術`, `光属性妖術`, `伝説`, `道具大好き`];
   }
   if (y === 2024 && m === 12 && d === 25) {
     return [
@@ -906,20 +993,10 @@ const eventAmulet = (data?) => {
     ];
   }
   if (y === 2024 && m === 12 && d === 26) {
-    return [
-      `闇属性剣攻撃`,
-      `毒属性剣攻撃`,
-      `すぐ決死の覚悟をする`,
-      `不運チャージ`,
-    ];
+    return [`闇属性妖術`, `毒属性妖術`, `すぐ決死の覚悟をする`, `不運チャージ`];
   }
   if (y === 2024 && m === 12 && d === 27) {
-    return [
-      `闇属性剣攻撃`,
-      `毒属性剣攻撃`,
-      `すぐ決死の覚悟をする`,
-      `不運チャージ`,
-    ];
+    return [`闇属性妖術`, `毒属性妖術`, `すぐ決死の覚悟をする`, `不運チャージ`];
   }
   if (
     data?.skills?.length >= 1 &&

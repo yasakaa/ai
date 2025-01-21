@@ -675,6 +675,16 @@ export default class extends Module {
         return { reaction: 'love' };
       }
     }
+    if (msg.includes(['sReset'])) {
+      const id = /\w{10,}/.exec(msg.extractedText)?.[0];
+      if (id) {
+        const friend = this.ai.lookupFriend(id);
+        if (friend == null) return { reaction: ':neofox_approve:' };
+        friend.doc.perModulesData.rpg.lastShopVisited = '';
+        friend.save();
+        return { reaction: 'love' };
+      }
+    }
     if (msg.includes(['tReset'])) {
       const id = /\w{10,}/.exec(msg.extractedText)?.[0];
       if (id) {
@@ -884,6 +894,7 @@ export default class extends Module {
 
     if (skillEffects.allForOne || aggregateTokensEffects(data).allForOne) {
       atk = atk * spd * (1 + (skillEffects.allForOne ?? 0) * 0.1);
+      trueDmg = trueDmg * spd * (1 + (skillEffects.allForOne ?? 0) * 0.1);
       spd = 1;
     }
 
@@ -1508,7 +1519,8 @@ export default class extends Module {
       : 0;
 
     // 修行の成果
-    const upStats = (data.lv - 384) / 3;
+    const upStats =
+      data.lv > 594 ? 70 + (data.lv - 594) / 21 : (data.lv - 384) / 3;
     if (
       data.lv > 384 &&
       data.enemy.name === endressEnemy(data).name &&
@@ -1563,18 +1575,19 @@ export default class extends Module {
       def = def * (1 + (skillEffects.notBattleBonusDef ?? 0));
     }
 
+    let dmgUp = 1;
     let critUp = 0;
 
     // HPが1/7以下で相手とのHP差がかなりある場合、決死の覚悟のバフを得る
     if (!aggregateTokensEffects(data).notLastPower) {
       if (
         playerHpPercent <= (1 / 7) * (1 + (skillEffects.haisuiUp ?? 0)) &&
-        enemyHpPercent - playerHpPercent >=
-          0.5 / (1 + (skillEffects.haisuiUp ?? 0))
+        enemyHpPercent * (1 + (skillEffects.haisuiUp ?? 0)) - playerHpPercent >=
+          0.5
       ) {
         buff += 1;
         message += serifs.rpg.haisui + '\n';
-        atk = Math.round(atk * (1 + (skillEffects.haisuiAtkUp ?? 0)));
+        dmgUp *= 1 + (skillEffects.haisuiAtkUp ?? 0);
         critUp += skillEffects.haisuiCritUp ?? 0;
         const effect = Math.min(
           (enemyHpPercent - playerHpPercent) *
@@ -1919,7 +1932,7 @@ export default class extends Module {
     // バフが1つでも付与された場合、改行を追加する
     if (buff > 0) message += '\n';
 
-    const plusActionX = skillEffects.plusActionX ?? 0;
+    const plusActionX = Math.ceil(skillEffects.plusActionX ?? 0);
 
     for (let actionX = 0; actionX < plusActionX + 1; actionX++) {
       /** バフを得た数。行数のコントロールに使用 */
@@ -2157,6 +2170,7 @@ export default class extends Module {
           message += `⚂ ${Math.floor(rng * 100)}%\n`;
         const dmgBonus =
           (1 + (skillEffects.atkDmgUp ?? 0)) *
+          dmgUp *
           (skillEffects.thunder
             ? 1 +
               (skillEffects.thunder * ((i + 1) / spd)) /
