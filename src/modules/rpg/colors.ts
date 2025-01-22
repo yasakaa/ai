@@ -73,7 +73,9 @@ export const colors: Color[] = [
               ? `(現在 **${data.clearEnemy.length}** 連勝中)`
               : ''
           }`,
-    enhance: (data) => (data.hardWinCount ?? 0) >= 30,
+    enhance: (data) =>
+      Math.max((data.winCount ?? 0) - 120, 0) + (data.hardWinCount ?? 0) * 7 >=
+      210,
   },
   {
     id: 5,
@@ -125,7 +127,6 @@ export const colors: Color[] = [
     reverseStatus: true,
     enhance: (data) => data.superCount >= 20 || data.superUnlockCount >= 100,
   },
-
   {
     id: 9,
     name: ':aichan9:',
@@ -229,6 +230,6 @@ export const colorReply = (module: Module, msg: Message) => {
   );
 
   return {
-    reaction: ':neofox_heart:',
+    reaction: 'love',
   };
 };
