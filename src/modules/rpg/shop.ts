@@ -1223,6 +1223,10 @@ export function shopContextHook(
               (x) => data.showShopItems[i].name !== x,
             );
             module.unsubscribeReply(key);
+          } else {
+            if (!item.limit || item.price != data.showShopItems[i].price) {
+              module.unsubscribeReply(key);
+            }
           }
         } else {
           rpgData.items.push(data.showShopItems[i]);

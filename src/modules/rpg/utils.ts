@@ -20,6 +20,18 @@ export function initializeData(module: rpg, msg) {
   if (data.shopExp < 2000 && data.jar === 4) data.shopExp = 2000;
   if (data.shopExp < 3000 && data.jar === 5) data.shopExp = 3000;
   if (data.shopExp < 4200 && data.jar === 6) data.shopExp = 4200;
+  if (data.atkMedal && data.atkMedal > 10) {
+    data.rerollOrb += 120 * (data.atkMedal - 10);
+    data.atkMedal = 10;
+  }
+  if (data.defMedal && data.defMedal > 10) {
+    data.rerollOrb += 120 * (data.defMedal - 10);
+    data.defMedal = 10;
+  }
+  if (data.itemMedal && data.itemMedal > 10) {
+    data.rerollOrb += 120 * (data.itemMedal - 10);
+    data.itemMedal = 10;
+  }
   data.clearRaidNum = Array.from(new Set(data.clearRaid ?? []))?.length ?? 0;
   data.items?.filter(
     (x) =>
