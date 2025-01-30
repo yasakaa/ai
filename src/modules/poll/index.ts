@@ -2,7 +2,7 @@ import autobind from 'autobind-decorator';
 import Message from '@/message';
 import Module from '@/module';
 import serifs from '@/serifs';
-import loki from 'lokijs';
+import * as loki from 'lokijs';
 import { genItem } from '@/vocabulary';
 import config from '@/config';
 import { Note } from '@/misskey/note';
@@ -22,6 +22,13 @@ export default class extends Module {
     winCount?: number;
   }>;
 
+  // 新しく追加するコレクション
+  private ongoingPolls: loki.Collection<{
+    title: string;
+    noteId: string;
+    expiration: number;
+  }>;
+
   @autobind
   public install() {
     this.pollresult = this.ai.getCollection('_poll_pollresult', {
@@ -30,6 +37,11 @@ export default class extends Module {
     this.pollresultlegend = this.ai.getCollection('_poll_pollresultlegend', {
       indices: ['userId'],
     });
+    this.ongoingPolls = this.ai.getCollection('_poll_ongoingPolls', {
+      indices: ['noteId'],
+    });
+    this.ongoingPolls.findAndRemove({ expiration: { $lt: Date.now() } });
+
     setInterval(
       () => {
         const hours = new Date().getHours();
@@ -90,28 +102,41 @@ export default class extends Module {
         '海に持っていきたいもの',
         'みなの者！海にひとつ持っていけるとしたらどれがいいんじゃ？',
       ],
+      [
+        '無人島に持っていきたいもの',
+        'みなの者！無人島にひとつ持っていけるとしたらどれがいいんじゃ？',
+      ],
       ['家に飾りたいもの', 'みなの者！家に飾るとしたらどれにするんじゃ？'],
       ['売れそうなもの', 'みなの者！どれがいちばん売れそうと思うんじゃ？'],
       [
         '降ってきてほしいもの',
         'みなの者！どれが空から降ってきてほしいんじゃ？',
       ],
+      ['携帯したいもの', 'みなの者！どれを携帯したいんじゃ？'],
+      ['商品化したいもの', 'みなの者！商品化するとしたらどれにするんじゃ？'],
+      [
+        '発掘されそうなもの',
+        'みなの者！遺跡から発掘されそうなものはどれだと思うんじゃ？',
+      ],
       [
         '良い香りがしそうなもの',
         'みなの者！どれがいちばんいい香りがすると思うんじゃ？',
       ],
-      ['高価なもの', 'みなの者！どれがいちばん高価だと思うんじゃ？'],
       [
-        '皆尽村にありそうなもの',
-        'みなの者！どれが皆尽村にありそうだと思うんじゃ？',
+        '高値で取引されそうなもの',
+        'みなの者！どれがいちばん高値で取引されると思うんじゃ？',
       ],
       [
-        'ぷれぜんとしたいもの',
-        'みなの者！わらわにぷれぜんとしてくれるとしたらどれにするのじゃ？',
+        '地球周回軌道上にありそうなもの',
+        'みなの者！どれが地球周回軌道上を漂っていそうだと思うんじゃ？',
       ],
       [
-        'ぷれぜんとされたいもの',
-        'みなの者！ぷれぜんとでもらうとしたらどれがいいんじゃ？',
+        'プレゼントしたいもの',
+        'みなの者！わらわにプレゼントしてくれるとしたらどれにするんじゃ？',
+      ],
+      [
+        'プレゼントされたいもの',
+        'みなの者！プレゼントでもらうとしたらどれにするんじゃ？',
       ],
       [
         'わらわが持ってそうなもの',
@@ -122,14 +147,14 @@ export default class extends Module {
       ['お昼ごはん', 'みなの者！お昼ごはんにどれが食べたいんじゃ？'],
       ['お夕飯', 'みなの者！お夕飯にどれが食べたいんじゃ？'],
       ['体に良さそうなもの', 'みなの者！どれが体に良さそうだと思うんじゃ？'],
-      ['さめ映画', 'みなの者！どれが一番さめ映画に出てきそうだと思うんじゃ？'],
+      ['後世に遺したいもの', 'みなの者！どれを後世に遺したいんじゃ？'],
       [
         '楽器になりそうなもの',
         'みなの者！どれが楽器になりそうだと思うんじゃ？',
       ],
       [
         'お味噌汁の具にしたいもの',
-        'みなの者！お味噌汁の具にするとしたらどれがいいのじゃ？',
+        'みなの者！お味噌汁の具にするとしたらどれがいいんじゃ？',
       ],
       ['ふりかけにしたいもの', 'みなの者！どれをごはんにふりかけたいんじゃ？'],
       ['よく見かけるもの', 'みなの者！どれをよく見かけるんじゃ？'],
@@ -148,13 +173,13 @@ export default class extends Module {
       ['絵文字になってほしいもの', '絵文字になってほしいものはどれじゃ？'],
       [
         '阨ちゃんの部屋にありそうなもの',
-        'みなの者！わらわの住みかにありそうなものはどれだと思うんじゃ？',
+        'みなの者！わらわの部屋にありそうなものはどれだと思うんじゃ？',
       ],
-      ['燃えるごみ', 'みなの者！どれが燃えるごみだと思うんじゃ？'],
-      ['好きなおにぎりの具', 'そなたらが好きなおにぎりの具はなんじゃ？'],
+      ['燃えるゴミ', 'みなの者！どれが燃えるゴミだと思うんじゃ？'],
+      ['好きなおにぎりの具', '阨ちゃんの好きなおにぎりの具はなんですか？'],
       [
         '嫌なおにぎりの具',
-        'そなたらが一番食べたくないおにぎりの具はなんじゃ？',
+        'みなの者が一番食べたくないおにぎりの具はなんですか？',
       ],
       ['最強物決定', 'みなの者！この中でどれが最強だと思うんじゃ？'],
       ['最弱物決定', 'みなの者！この中でどれが最弱だと思うんじゃ？'],
@@ -170,11 +195,11 @@ export default class extends Module {
         'でいりーしょっぷで売って欲しいもの',
         'みなの者！、いちばんでいりーしょっぷで売って欲しいものはどれじゃ？',
       ],
-      ['破壊力があるもの', 'みなの者！どれが一番破壊力があると感じるのじゃ？'],
-      ['人に押し付けたいもの', 'みなの者！どれを一番人に押し付けたいのじゃ？'],
+      ['破壊力があるもの', 'みなの者！どれが一番破壊力があると感じますか？'],
+      ['人に押し付けたいもの', 'みなの者！どれが一番人に押し付けたいんじゃ？'],
       [
         '欲しい物を選べって言われたら',
-        'この中から一つ欲しいものを選べって言われたのじゃ…… みんなならどれにするんじゃ？',
+        'この中から一つ欲しいものを選べって言われました…… みなさんならどれにするんじゃ？',
       ],
       [
         'いぎりすに持っていきたいもの',
@@ -185,6 +210,10 @@ export default class extends Module {
         'みなの者！村長になったら村に真っ先に設置したいものはどれじゃ？',
       ],
       ['村の新しいもの', '村に新しく増えるならどれがいいんじゃ？'],
+      [
+        'あいちゃんの新妖術',
+        'わらわが新しい妖術を覚えたのじゃ。それはどれじゃ？',
+      ],
       [
         '栄養ばらんす最強決定',
         'みなの者！どれがいちばん栄養ばらんすがいいんじゃ？',
@@ -210,9 +239,12 @@ export default class extends Module {
       ],
       [
         '口に出したい日本語',
-        'みなの者！どれがいちばん口に出したい日本語じゃ？',
+        'みなの者！どれがいちばん口に出したい日本語だと思うんじゃ？',
       ],
-      ['子供に大人気なもの', 'みなの者！どれがいちばん子供に大人気じゃ？'],
+      [
+        '子供に大人気なもの',
+        'みなの者！どれがいちばん子供に大人気だと思うんじゃ？',
+      ],
       ['渋いもの', 'みなの者！どれがいちばん渋いと思うんじゃ？'],
       ['辛いもの', 'みなの者！どれがいちばん辛いと思うんじゃ？'],
       ['すっぱいもの', 'みなの者！どれがいちばんすっぱいと思うんじゃ？'],
@@ -271,6 +303,9 @@ export default class extends Module {
         '面白いもの',
         'みなの者！この中で一番面白いものってどれだと思うんじゃ？',
       ],
+      ['野菜食べてますか', 'みなの者！野菜食べてるかのう？'],
+      ['テーマなし', '特にテーマなしじゃと？！適当に答えてみせよ'],
+      ['好きな絵文字', 'みなの者！この中でどの絵文字が一番好きなんじゃ？'],
       ['供物にしたいもの', 'みなの者は、どれを神様の供物にささげたいんじゃ？'],
       ['よく見かけるもの', 'みなの者は、どれをよく見かけるんじゃ？'],
       [
@@ -310,7 +345,7 @@ export default class extends Module {
     const poll = nenmatu
       ? [
           `${new Date().getFullYear()}年っぽい響きのもの`,
-          `みなの者、${new Date().getFullYear()}年ももうすぐ終わりじゃのう～ みなの者はこの中でいちばん${new Date().getFullYear()}年っぽい響きのものはどれだと思うんじゃ？`,
+          `みなの者、${new Date().getFullYear()}年ももうすぐ終わりじゃのう… みなの者はこの中でいちばん${new Date().getFullYear()}年っぽい響きのものはどれだと思うんじゃ？`,
         ]
       : selectedPolls.length
         ? selectedPolls[Math.floor(Math.random() * selectedPolls.length)]
@@ -320,27 +355,39 @@ export default class extends Module {
       key: poll[0],
     });
 
+    const genItemOptions = { allowSimpleItem: false };
+
     let choices = nenmatu
       ? [
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
-          genItem(),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
         ]
-      : [genItem(), genItem(), genItem(), genItem()];
+      : [
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+          genItem(genItemOptions),
+        ];
 
     if (!nenmatu) {
-      if (Math.random() < 0.28) choices.push(genItem());
-      if (Math.random() < 0.28) choices.push(genItem());
-      if (Math.random() < 0.28) choices.push(genItem());
-      if (Math.random() < 0.28) choices.push(genItem());
-      if (Math.random() < 0.28) choices.push(genItem());
+      if (Math.random() < 0.28 || (exist?.winCount && exist.winCount >= 2))
+        choices.push(genItem(genItemOptions));
+      if (Math.random() < 0.28 || (exist?.winCount && exist.winCount >= 4))
+        choices.push(genItem(genItemOptions));
+      if (Math.random() < 0.28 || (exist?.winCount && exist.winCount >= 6))
+        choices.push(genItem(genItemOptions));
+      if (Math.random() < 0.28 || (exist?.winCount && exist.winCount >= 8))
+        choices.push(genItem(genItemOptions));
+      if (Math.random() < 0.28 || (exist?.winCount && exist.winCount >= 10))
+        choices.push(genItem(genItemOptions));
       if (poll[0] === '好きな絵文字') {
         const data = (await this.ai.api('emojis', {})).emojis
           ?.filter((x) => !x.category?.includes('!'))
@@ -367,6 +414,13 @@ export default class extends Module {
         expiredAfter: duration,
         multiple: false,
       },
+    });
+
+    // `ongoingPolls`に登録
+    this.ongoingPolls.insertOne({
+      title: poll[0],
+      noteId: note.id,
+      expiration: Date.now() + duration,
     });
 
     // タイマーセット
@@ -406,28 +460,37 @@ export default class extends Module {
           this.pollresult.remove(exist);
         }
       });
-      const pollresult = this.pollresult.find().sort((a, b) => {
-        //連勝数が多い順、同じなら文字列コード順
-        if ((a.winCount ?? 1) === (b.winCount ?? 1)) {
-          const isYearA = /^\d{4}/.test(a.key);
-          const isYearB = /^\d{4}/.test(b.key);
-          if (isYearA && !isYearB) {
-            return 1;
+
+      // 現在受付中のpollのタイトルを取得
+      const ongoingTitles = this.ongoingPolls.find().map((poll) => poll.title);
+
+      // pollresultからongoingTitlesに含まれないものをフィルタリング
+      const pollresult = this.pollresult
+        .find()
+        .filter((x) => !ongoingTitles.includes(x.key))
+        .sort((a, b) => {
+          // 連勝数が多い順、同じなら文字列コード順
+          if ((a.winCount ?? 1) === (b.winCount ?? 1)) {
+            const isYearA = /^\d{4}/.test(a.key);
+            const isYearB = /^\d{4}/.test(b.key);
+            if (isYearA && !isYearB) {
+              return 1;
+            }
+            if (isYearB && !isYearA) {
+              return -1;
+            }
+            if (a.key < b.key) {
+              return -1;
+            }
+            if (b.key > a.key) {
+              return 1;
+            }
+            return 0;
+          } else {
+            return (b.winCount ?? 1) - (a.winCount ?? 1);
           }
-          if (isYearB && !isYearA) {
-            return -1;
-          }
-          if (a.key < b.key) {
-            return -1;
-          }
-          if (b.key > a.key) {
-            return 1;
-          }
-          return 0;
-        } else {
-          return (b.winCount ?? 1) - (a.winCount ?? 1);
-        }
-      });
+        });
+
       const pollresultstr = pollresult
         .map(
           (x) =>
@@ -438,7 +501,7 @@ export default class extends Module {
         )
         .join('\n\n');
       msg.reply('わらわが覚えた答えじゃ！\n```\n' + pollresultstr + '\n```');
-      return { reaction: ':neofox_heart:' };
+      return { reaction: 'love' };
     } else {
       if (
         !msg.includes(['/poll']) ||
@@ -447,12 +510,12 @@ export default class extends Module {
       ) {
         return false;
       } else {
-      }
-      const key = /\/poll\s(\S+)$/.exec(msg.text)?.[1];
-      this.log('Manualy poll requested key: ' + (key ?? 'null'));
-      this.post(key);
+        const key = /\/poll\s(\S+)$/.exec(msg.text)?.[1];
+        this.log('Manualy poll requested key: ' + (key ?? 'null'));
+        this.post(key);
 
-      return { reaction: ':neofox_heart:' };
+        return { reaction: 'love' };
+      }
     }
   }
 
@@ -527,6 +590,8 @@ export default class extends Module {
           });
         }
       }
+      // `ongoingPolls`から削除
+      this.ongoingPolls.findAndRemove({ noteId: noteId });
       this.ai.post({
         // TODO: Extract serif
         cw: `${title}アンケートの結果発表じゃ！`,
@@ -542,7 +607,7 @@ export default class extends Module {
         renoteId: noteId,
       });
     } else {
-      const choices = mostVotedChoices
+      const choicesStr = mostVotedChoices
         .map((choice) => `「${choice.text}」`)
         .join('と');
       if (mostVotedChoice.votes >= 3 || totalVoted > choices.length) {
@@ -589,6 +654,8 @@ export default class extends Module {
           });
         }
       }
+      // `ongoingPolls`から削除
+      this.ongoingPolls.findAndRemove({ noteId: noteId });
       this.ai.post({
         // TODO: Extract serif
         cw: `${title}アンケートの結果発表じゃ！`,
