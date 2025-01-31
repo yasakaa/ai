@@ -39,6 +39,7 @@ export const skillPrice = (
   const filteredSkills = skills.filter(
     (x) => !x.moveTo && !x.cantReroll && !x.unique,
   );
+  const skill = skills.find((x) => x.name === skillName);
 
   // totalSkillCountにfilteredSkillsのnameに含まれるskillP.skillNameCountMapに含まれる値の合計を代入
   const totalSkillCount = filteredSkills.reduce(
@@ -48,12 +49,14 @@ export const skillPrice = (
 
   const price = Math.max(
     Math.floor(
-      (12 *
-        (Math.max(
-          isNaN(skillP.skillNameCount) ? 0 : skillP.skillNameCount,
-          0.5,
-        ) /
-          (totalSkillCount / filteredSkills.length))) **
+      ((skill?.unique ? 18 : 12) *
+        (skill?.notLearn
+          ? 2.5
+          : Math.max(
+              isNaN(skillP.skillNameCount) ? 0 : skillP.skillNameCount,
+              0.5,
+            ) /
+            (totalSkillCount / filteredSkills.length))) **
         2,
     ),
     100,
@@ -88,6 +91,15 @@ const resetCantRerollSkill = (data) => {
 };
 //limit: (data) => !data.items.filter((x) => x.name === "平常心のお札").length && !data.bankItems?.filter((x) => x === "平常心のお札").length,
 const canBankItems: ShopItem[] = [
+  {
+    name: `修繕の札`,
+    price: 500,
+    limit: (data) => enhanceCount(data) >= 9,
+    desc: `持っているとお守りが壊れなくなりますが、本来壊れるタイミングでどんぐりを消費します 1回につき減少するどんぐり数はお守りの購入額/耐久+1です ただし、最大耐久が2以上あるお守りにしか効果を発揮しません`,
+    type: 'token',
+    effect: { autoRepair: true },
+    always: true,
+  } as TokenItem,
   {
     name: `乱数透視の札`,
     price: 50,
@@ -145,15 +157,6 @@ const canBankItems: ShopItem[] = [
     always: true,
   } as TokenItem,
   {
-    name: `修繕の札`,
-    price: 500,
-    limit: (data) => enhanceCount(data) >= 9,
-    desc: `持っているとお守りが耐久が減る代わりにキレイなどんぐりを減少させます 耐久1につき減少するどんぐり数はお守りの購入額/耐久+1です ただし、耐久が2以上あるお守りにしか効果を発揮しません`,
-    type: 'token',
-    effect: { autoRepair: true },
-    always: true,
-  } as TokenItem,
-  {
     name: `覚醒変更の札（朱）`,
     price: 50,
     desc: `覚醒時の行動回数増加と毒アイテム効果軽減を失いますが、代わりにクリティカルダメージが+35%以下の場合、+35%になり、クリティカル率（固定）+8%を得るようになります 4色のうちどれか1つしか発動しません`,
@@ -196,7 +199,7 @@ const bankItemsDesc2 = {
   しあわせのお札: 'ステータスの割合がランダムに一時的に変化しなくなる',
   超覚醒の札:
     '覚醒時の投稿数増加ボーナスを得られますが、投稿数効果上昇を失います',
-  修繕の札: '通常通り耐久が減少するようになります',
+  修繕の札: '通常通りお守りが壊れるようになります',
   '覚醒変更の札（朱）':
     '覚醒時の効果が行動回数増加・毒アイテム効果軽減に戻ります',
   '覚醒変更の札（橙）': '覚醒時の効果が行動回数増加に戻ります',
@@ -252,6 +255,15 @@ export const shop2Items: ShopItem[] = [
     type: 'item',
     effect: (data) =>
       (data.items = data.items?.filter((x) => x.type !== 'amulet')),
+    always: true,
+  },
+  {
+    name: `教本を捨てる`,
+    limit: (data) => data.nextSkill,
+    price: 0,
+    desc: `今所持している教本を捨てます`,
+    type: 'item',
+    effect: (data) => (data.nextSkill = null),
     always: true,
   },
   {
@@ -492,7 +504,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '赤の勲章',
     limit: (data) => (data.atkMedal ?? 0) < 10,
-    desc: '1つ購入する度に恒久的にパワーが+1% 10個まで購入できます',
+    desc: '1つ購入する度に恒久的にパワーが+1% 1種類につき10個まで購入できます',
     price: (data) => 20 * (1 + Math.floor((data.atkMedal ?? 0) / 2)),
     orb: true,
     type: 'item',
@@ -503,7 +515,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '青の勲章',
     limit: (data) => (data.defMedal ?? 0) < 10,
-    desc: '1つ購入する度に恒久的に最大体力が+1.5% 10個まで購入できます',
+    desc: '1つ購入する度に恒久的に最大体力が+1.5% 1種類につき10個まで購入できます',
     price: (data) => 20 * (1 + Math.floor((data.defMedal ?? 0) / 2)),
     orb: true,
     type: 'item',
@@ -514,7 +526,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '緑の勲章',
     limit: (data) => (data.itemMedal ?? 0) < 10,
-    desc: '1つ購入する度に恒久的に全ての道具効果（装備率、効果量、悪・毒アイテム回避）が+1% 10個まで購入できます',
+    desc: '1つ購入する度に恒久的に全ての道具効果（装備率、効果量、悪・毒アイテム回避）が+1% 1種類につき10個まで購入できます',
     price: (data) => 20 * (1 + Math.floor((data.itemMedal ?? 0) / 2)),
     orb: true,
     type: 'item',
@@ -598,11 +610,17 @@ export const shop2Items: ShopItem[] = [
     always: true,
   },
   ...skills
-    .filter((x) => !x.notLearn && !x.moveTo && !x.cantReroll && !x.unique)
+    .filter((x) => !x.notLearn && !x.moveTo && !x.cantReroll)
     .map(
       (x): Item => ({
         name: `${x.name}の教本`,
-        limit: (data) => !data.nextSkill,
+        limit: (data) =>
+          !data.nextSkill &&
+          (!x.unique ||
+            !data.skills
+              .filter((y) => y.unique)
+              .map((y) => y.unique)
+              .includes(x.unique)),
         price: (data, rnd, ai) => skillPrice(ai, x.name, rnd),
         desc: `購入すると次のスキル変更時に必ず「${x.name}」${x.desc ? `（${x.desc}）` : ''}を習得できる（複製時は対象外）`,
         type: 'item',

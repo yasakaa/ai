@@ -261,8 +261,8 @@ export const skills: Skill[] = [
     name: `${serifs.rpg.status.def}アップ`,
     short: `Ｄ`,
     desc: `常に${serifs.rpg.status.def}が上がります`,
-    info: `${serifs.rpg.status.def}+11%`,
-    effect: { defUp: 0.11 },
+    info: `${serifs.rpg.status.def}+13%`,
+    effect: { defUp: 0.13 },
   },
   {
     name: `炎属性妖術`,
@@ -394,15 +394,15 @@ export const skills: Skill[] = [
     name: `疲れにくい`,
     short: '疲',
     desc: `疲れでダメージを受ける際にそのダメージを軽減します`,
-    info: `ダメージメッセージに疲が入っている場合、${serifs.rpg.status.def}+22%`,
-    effect: { notBattleBonusDef: 0.22 },
+    info: `ダメージメッセージに疲が入っている場合、${serifs.rpg.status.def}+27%`,
+    effect: { notBattleBonusDef: 0.27 },
   },
   {
     name: `油断せずいこう`,
     short: '断',
     desc: `ターン1に受けるダメージを大きく軽減します`,
-    info: `ターン1にてダメージカット30%を得る\n100%以上になる場合、残りはターン2に持ち越す`,
-    effect: { firstTurnResist: 0.3 },
+    info: `ターン1にてダメージカット40%を得る\n100%以上になる場合、残りはターン2に持ち越す`,
+    effect: { firstTurnResist: 0.4 },
     skillOnly: true,
   },
   {
@@ -430,9 +430,9 @@ export const skills: Skill[] = [
   {
     name: `伝説`,
     short: '★',
-    desc: `パワー・防御が7%上がります`,
-    info: `ステータス+7% 重複しない`,
-    effect: { atkUp2: 0.07, defUp2: 0.07 },
+    desc: `パワー・防御が8%上がります`,
+    info: `ステータス+8% 重複しない`,
+    effect: { atkUp2: 0.08, defUp2: 0.08 },
     unique: 'legend',
   },
   {
@@ -453,8 +453,8 @@ export const skills: Skill[] = [
     name: `連続・毎日ボーナス強化`,
     short: '連',
     desc: `連続・毎日ボーナスの上昇量が上がります`,
-    info: `毎日ボーナスの増加量+100% (10 ~ 25投稿↑)`,
-    effect: { continuousBonusUp: 1 },
+    info: `ステータス+5% 毎日ボーナスの増加量+100% (10 ~ 25投稿↑)`,
+    effect: { atkUp2: 0.05, defUp2: 0.05, continuousBonusUp: 1 },
   },
   {
     name: `負けそうなら逃げる`,
@@ -467,8 +467,8 @@ export const skills: Skill[] = [
     name: `気合で頑張る`,
     short: '気',
     desc: `パワー・防御が少し上がり、気合耐えの確率が上がります`,
-    info: `ステータス+4% 気合耐え確率+50%`,
-    effect: { atkUp3: 0.04, defUp3: 0.04, endureUp: 0.5 },
+    info: `ステータス+5% 気合耐え確率+50%`,
+    effect: { atkUp3: 0.05, defUp3: 0.05, endureUp: 0.5 },
   },
   {
     name: `すぐ決死の覚悟をする`,
@@ -500,8 +500,8 @@ export const skills: Skill[] = [
     name: `${serifs.rpg.status.pen}+10%`,
     short: '貫',
     desc: `敵の防御の影響を減少させます`,
-    info: `敵の防御-10%`,
-    effect: { arpen: 0.1 },
+    info: `敵の防御-12%`,
+    effect: { arpen: 0.12 },
   },
   {
     name: `${serifs.rpg.dmg.give}${serifs.rpg.status.rndM}4`,
@@ -563,6 +563,15 @@ export const skills: Skill[] = [
     effect: { itemEquip: 0.5 },
   },
   {
+    name: `道具大好き＋`,
+    short: '**道**',
+    desc: `道具の使用率が大きく上がります`,
+    info: `アイテム装備率+90%`,
+    effect: { itemEquip: 0.9 },
+    notLearn: true,
+    skillOnly: true,
+  },
+  {
     name: `道具の扱いが上手い`,
     short: '扱',
     desc: `道具の効果量が上がります`,
@@ -573,24 +582,24 @@ export const skills: Skill[] = [
     name: `武器が大好き`,
     short: '武',
     desc: `武器を装備しやすくなり、武器の効果量が上がります`,
-    info: `武器装備率3倍 武器効果量+60% 種類大好き系と重複しない`,
-    effect: { weaponSelect: 2, weaponBoost: 0.6 },
+    info: `武器装備率3倍 武器効果量+70% 種類大好き系と重複しない`,
+    effect: { weaponSelect: 2, weaponBoost: 0.7 },
     unique: 'itemSelect',
   },
   {
     name: `防具が大好き`,
     short: '防',
     desc: `防具を装備しやすくなり、防具の効果量が上がります`,
-    info: `防具装備率3倍 防具効果量+60% 種類大好き系と重複しない`,
-    effect: { armorSelect: 2, armorBoost: 0.6 },
+    info: `防具装備率3倍 防具効果量+70% 種類大好き系と重複しない`,
+    effect: { armorSelect: 2, armorBoost: 0.7 },
     unique: 'itemSelect',
   },
   {
     name: `食いしんぼう`,
     short: '食',
     desc: `食べ物を食べやすくなり、食べ物の効果量が上がります`,
-    info: `食べ物使用率3倍 食べ物効果量+60% 毒食べ物ダメージ-60% 種類大好き系と重複しない`,
-    effect: { foodSelect: 2, foodBoost: 0.6, poisonResist: 0.6 },
+    info: `食べ物使用率3倍 食べ物効果量+70% 毒食べ物ダメージ-60% 種類大好き系と重複しない`,
+    effect: { foodSelect: 2, foodBoost: 0.7, poisonResist: 0.6 },
     unique: 'itemSelect',
   },
   {
@@ -667,8 +676,8 @@ export const skills: Skill[] = [
     name: `不運チャージ`,
     short: 'Ｃ',
     desc: `不運だった場合、次回幸運になりやすくなります`,
-    info: `ステータス+5% 低乱数を引いた時、次回以降に高乱数を引きやすくなる`,
-    effect: { atkUp4: 0.05, defUp4: 0.05, charge: 1 },
+    info: `ステータス+6% 低乱数を引いた時、次回以降に高乱数を引きやすくなる`,
+    effect: { atkUp4: 0.06, defUp4: 0.06, charge: 1 },
   },
   {
     name: `お守り整備`,
@@ -713,8 +722,8 @@ export const skills: Skill[] = [
     name: `かるわざ`,
     short: '軽',
     desc: `ステータスが上がり、お守りを持っていない時、追加で${serifs.rpg.status.atk}がさらに上がります`,
-    info: `ステータス+5% お守りを持っていない時、追加で${serifs.rpg.status.atk}+4%`,
-    effect: { atkUp6: 0.05, defUp5: 0.05, noAmuletAtkUp: 0.04 },
+    info: `ステータス+6% お守りを持っていない時、追加で${serifs.rpg.status.atk}+6%`,
+    effect: { atkUp6: 0.06, defUp5: 0.06, noAmuletAtkUp: 0.06 },
     skillOnly: true,
   },
   {
@@ -736,53 +745,62 @@ export const skills: Skill[] = [
 ];
 
 const ultimateEffect: SkillEffect = {
-  atkUp: 0.035,
-  defUp: 0.027,
-  fire: 0.009,
-  ice: 0.009,
-  thunder: 0.018,
-  spdUp: 0.009,
-  dart: 0.018,
-  light: 0.018,
-  dark: 0.009,
-  weak: 0.006,
-  notBattleBonusAtk: 0.022,
-  notBattleBonusDef: 0.022,
-  firstTurnResist: 0.03,
-  tenacious: 0.025,
+  atkUp: 0.01,
+  atkUp2: 0.0063,
+  atkUp3: 0.0036,
+  atkUp4: 0.0045,
+  atkUp6: 0.0045,
+  defUp: 0.01,
+  defUp2: 0.0063,
+  defUp3: 0.0036,
+  defUp4: 0.0045,
+  defUp5: 0.0045,
+  fire: 0.008,
+  ice: 0.008,
+  thunder: 0.016,
+  spdUp: 0.008,
+  dart: 0.016,
+  light: 0.016,
+  dark: 0.008,
+  weak: 0.0054,
+  notBattleBonusAtk: 0.02,
+  notBattleBonusDef: 0.02,
+  firstTurnResist: 0.027,
+  tenacious: 0.023,
   plusActionX: 1,
-  atkDmgUp: 0.01,
-  defDmgUp: -0.01,
-  continuousBonusUp: 0.05,
+  atkDmgUp: 0.011,
+  defDmgUp: -0.009,
+  atkDmgUp2: 0.007,
+  continuousBonusUp: 0.045,
   escape: 1,
-  endureUp: 0.05,
-  haisuiUp: 0.05,
-  postXUp: 0.005,
-  enemyStatusBonus: 0.1,
-  arpen: 0.01,
+  endureUp: 0.045,
+  haisuiUp: 0.045,
+  postXUp: 0.0045,
+  enemyStatusBonus: 0.09,
+  arpen: 0.009,
   defRndMin: -0.02,
   defRndMax: -0.02,
   firstTurnItem: 1,
   firstTurnMindMinusAvoid: 1,
-  itemEquip: 0.05,
-  itemBoost: 0.055,
-  weaponBoost: 0.06,
-  armorBoost: 0.06,
-  foodBoost: 0.08,
-  poisonResist: 0.08,
-  mindMinusAvoid: 0.015,
-  poisonAvoid: 0.04,
-  abortDown: 0.03,
-  critUp: 0.02,
-  critUpFixed: 0.003,
-  critDmgUp: 0.02,
-  enemyCritDown: 0.04,
-  enemyCritDmgDown: 0.04,
+  itemEquip: 0.045,
+  itemBoost: 0.05,
+  weaponBoost: 0.054,
+  armorBoost: 0.054,
+  foodBoost: 0.072,
+  poisonResist: 0.072,
+  mindMinusAvoid: 0.014,
+  poisonAvoid: 0.036,
+  abortDown: 0.027,
+  critUp: 0.018,
+  critUpFixed: 0.0027,
+  critDmgUp: 0.018,
+  enemyCritDown: 0.036,
+  enemyCritDmgDown: 0.036,
   sevenFever: 0.1,
   charge: 0.1,
-  heavenOrHell: 0.02,
-  haisuiAtkUp: 0.004,
-  haisuiCritUp: 0.02,
+  heavenOrHell: 0.018,
+  haisuiAtkUp: 0.0036,
+  haisuiCritUp: 0.018,
 };
 
 export const ultimateAmulet = {
@@ -1234,15 +1252,15 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
   if (aggregatedEffect.beginner) {
     /** 常時覚醒？ */
     let alwaysSuper = getColor(data).alwaysSuper;
-    /* スキル数が1少ない度に×1.06 レイドかつ常時覚醒でない場合さらに×1.12 */
+    /* スキル数が1少ない度に×1.06 レイドかつ常時覚醒でない場合さらに×1.15 */
     aggregatedEffect.atkUp =
       (aggregatedEffect.atkUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.12));
+        (alwaysSuper || !data.raid ? 1 : 1.15));
     aggregatedEffect.defUp =
       (aggregatedEffect.defUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.12));
+        (alwaysSuper || !data.raid ? 1 : 1.15));
   }
 
   if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {
@@ -1466,15 +1484,15 @@ export function aggregateSkillsEffectsSkillX(
   if (aggregatedEffect.beginner) {
     /** 常時覚醒？ */
     let alwaysSuper = getColor(data).alwaysSuper;
-    /* スキル数が1少ない度に×1.06 レイドかつ常時覚醒でない場合さらに×1.12 */
+    /* スキル数が1少ない度に×1.06 レイドかつ常時覚醒でない場合さらに×1.15 */
     aggregatedEffect.atkUp =
       (aggregatedEffect.atkUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.1));
+        (alwaysSuper || !data.raid ? 1 : 1.15));
     aggregatedEffect.defUp =
       (aggregatedEffect.defUp ?? 0) *
       (Math.pow(1 + aggregatedEffect.beginner, 5 - (data.skills?.length ?? 0)) *
-        (alwaysSuper || !data.raid ? 1 : 1.1));
+        (alwaysSuper || !data.raid ? 1 : 1.15));
   }
 
   if (aggregatedEffect.rainbow && aggregatedEffect.rainbow > 1) {

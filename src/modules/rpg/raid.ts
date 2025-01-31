@@ -1176,7 +1176,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
         const effect = Math.min(
           (enemyHpPercent - playerHpPercent) *
             (1 + (skillEffects.haisuiUp ?? 0)),
-          1,
+          0.99,
         );
         atk = atk + Math.round(def * effect);
         def = Math.round(def * (1 - effect));
