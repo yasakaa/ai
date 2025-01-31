@@ -1,16 +1,17 @@
-import autobind from "autobind-decorator";
-import Module from "@/module";
-import Friend from "@/friend";
-import serifs from "@/serifs";
-import { acct } from "@/utils/acct";
-import getDate from "@/utils/get-date";
+import autobind from 'autobind-decorator';
+import Module from '@/module';
+import Friend from '@/friend';
+import serifs from '@/serifs';
+import { acct } from '@/utils/acct';
+import getDate from '@/utils/get-date';
+import config from '@/config';
 
 function zeroPadding(num: number, length: number): string {
-  return ("0000000000" + num).slice(-length);
+  return ('0000000000' + num).slice(-length);
 }
 
 export default class extends Module {
-  public readonly name = "birthday";
+  public readonly name = 'birthday';
 
   @autobind
   public install() {
@@ -35,7 +36,7 @@ export default class extends Module {
     const todaydate = getDate();
 
     const birthFriends = this.ai.friends.find({
-      "user.birthday": { $regex: new RegExp("-" + today + "$") },
+      'user.birthday': { $regex: new RegExp('-' + today + '$') },
     } as any);
 
     birthFriends.forEach((f) => {
@@ -84,13 +85,17 @@ export default class extends Module {
         this.ai.post({
           text: serifs.birthday.happyBirthdayLocal(
             friend.name,
-            acct(friend.doc.user)
+            acct(friend.doc.user),
           ),
-          localOnly: true,
+          visibility: 'public',
+          localOnly: config.birthdayPostLocalOnly,
+          ...(config.birthdayPostChannel
+            ? { channelId: config.birthdayPostChannel }
+            : {}),
         });
       } else {
         this.ai.sendMessage(friend.userId, {
-          text: acct(friend.doc.user) + " " + text,
+          text: acct(friend.doc.user) + ' ' + text,
         });
       }
     });

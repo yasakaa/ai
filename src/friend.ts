@@ -16,6 +16,7 @@ export type FriendDoc = {
   lastLoveIncrementedAt?: string;
   todayLoveIncrements?: number;
   lastLoveIncrementedTime?: string;
+  lastRPGTime?: string;
   cooldownLoveIncrementKey?: string[];
   perModulesData?: any;
   married?: boolean;
@@ -54,7 +55,7 @@ export default class Friend {
       });
 
       if (exist == null) {
-        const inserted = this.ai.friends.insertOne({
+        let inserted = this.ai.friends.insertOne({
           userId: opts.user.id,
           user: opts.user,
         });
@@ -64,6 +65,56 @@ export default class Friend {
         }
 
         this.doc = inserted;
+
+        if (opts.user.alsoKnownAs?.length) {
+          const moveto = opts.user.alsoKnownAs[0];
+          try {
+            const moveUserFriends = this.ai.friends.findOne({
+              'user.uri': moveto,
+            } as any);
+            if (moveUserFriends) {
+              const doc1 = new Friend(this.ai, { doc: moveUserFriends });
+              console.log('move user ' + doc1.userId + ' -> ' + this.userId);
+              this.doc.name = this.doc.name || doc1.name;
+              let x = 0;
+              let y = 0;
+              while (y < doc1.love) {
+                const amount =
+                  y > 100
+                    ? Math.ceil((0.5 / (((y || 0) * 2) / 100 - 1)) * 100) / 100
+                    : 0.5;
+                y = parseFloat((y + amount || 0).toFixed(2));
+                x += 1;
+              }
+              console.log(`${x} : ${y}`);
+              for (let i = 0; i < x; i++) {
+                this.incLove(0.1, 'merge');
+              }
+              doc1.doc.love = 0;
+              this.doc.married = doc1.married || this.married;
+              this.doc.perModulesData = this.mergeAndSum(
+                doc1.doc.perModulesData,
+                this.doc.perModulesData,
+              );
+              this.doc.kazutoriData = this.mergeAndSum(
+                doc1.doc.kazutoriData,
+                this.doc.kazutoriData,
+              );
+              doc1.doc.kazutoriData = {
+                winCount: 0,
+                playCount: 0,
+                rate: 0,
+                inventory: [],
+              };
+              this.save();
+              doc1.save();
+            } else {
+              console.log('move user not found ' + opts.user.id);
+            }
+          } catch {
+            console.log('move user error ' + opts.user.id);
+          }
+        }
       } else {
         this.doc = exist;
         this.doc.user = { ...this.doc.user, ...opts.user };
@@ -127,6 +178,16 @@ export default class Friend {
       this.doc.todayLoveIncrements = 0;
     }
 
+    if (key?.includes('aichan') || key?.includes('hero')) key = 'hero';
+
+    // RPGに関連する好感度増加は1日に1回
+    if (
+      key?.includes('hero') &&
+      this.doc.lastRPGTime &&
+      this.doc.lastRPGTime == today
+    )
+      return;
+
     const now = new Date();
 
     // 同じ種類の好感度増加は10分間に1回
@@ -146,9 +207,7 @@ export default class Friend {
 
       if (this.doc.cooldownLoveIncrementKey.includes(key)) {
         this.ai.log(
-          `💗 ${this.userId} +0 (${this.doc.love || 0}) <${
-            this.doc.lastLoveIncrementedTime
-          } : ${key}>`,
+          `💗 ${this.userId} +0 (${this.doc.love || 0}) <${this.doc.lastLoveIncrementedTime} : ${key}>`,
         );
         return;
       } else {
@@ -212,6 +271,9 @@ export default class Friend {
         (this.doc.todayLoveIncrements || 0).toFixed(2),
       );
     }
+    if (key?.includes('hero')) {
+      this.doc.lastRPGTime = today;
+    }
     this.save();
 
     // 好感度が上昇した場合、ActiveFactorを増加させる
@@ -219,9 +281,7 @@ export default class Friend {
 
     if (key != 'merge')
       this.ai.log(
-        `💗 ${this.userId} +${amount} (${this.doc.love || 0}) <${
-          this.doc.todayLoveIncrements || 0
-        } / ${(this.doc.love || 0) < 100 ? 15 : 50}>`,
+        `💗 ${this.userId} +${amount} (${this.doc.love || 0}) <${this.doc.todayLoveIncrements || 0} / ${(this.doc.love || 0) < 100 ? 15 : 50}>`,
       );
   }
 
@@ -297,5 +357,44 @@ export default class Friend {
     // TODO: 合言葉を忘れる
 
     return true;
+  }
+
+  @autobind
+  private mergeAndSum(obj1, obj2) {
+    // 結果を格納する新しいオブジェクト
+    const result = { ...obj1 };
+
+    // obj2のキーと値を結果に追加、同じキーがあれば値を足し合わせる
+    for (const key in obj2) {
+      if (result[key] != undefined) {
+        if (Array.isArray(result[key]) && Array.isArray(obj2[key])) {
+          // 配列の場合は結合する
+          result[key] = result[key].concat(obj2[key]);
+        } else if (
+          typeof result[key] === 'number' &&
+          typeof obj2[key] === 'number'
+        ) {
+          // 数値の場合は足し合わせる
+          result[key] += obj2[key];
+        } else if (result[key] instanceof Date && obj2[key] instanceof Date) {
+          // 日付の場合は未来の日付を採用する
+          result[key] = result[key] > obj2[key] ? result[key] : obj2[key];
+        } else if (
+          typeof result[key] === 'object' &&
+          typeof obj2[key] === 'object' &&
+          !Array.isArray(result[key])
+        ) {
+          // オブジェクトの場合は再帰的にマージする
+          result[key] = this.mergeAndSum(result[key], obj2[key]);
+        } else {
+          // 他の型の場合は後の方を採用する（ここでは単純に上書きするようにしています）
+          result[key] = obj2[key];
+        }
+      } else {
+        result[key] = obj2[key];
+      }
+    }
+
+    return result;
   }
 }

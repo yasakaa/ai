@@ -1,17 +1,18 @@
-import autobind from "autobind-decorator";
-import Module from "@/module";
-import Friend, { FriendDoc } from "@/friend";
-import { acct } from "@/utils/acct";
-import serifs from "@/serifs";
+import autobind from 'autobind-decorator';
+import Module from '@/module';
+import Friend, { FriendDoc } from '@/friend';
+import { acct } from '@/utils/acct';
+import serifs from '@/serifs';
+import config from '@/config';
 
 export default class extends Module {
-  public readonly name = "welcome";
+  public readonly name = 'welcome';
 
   @autobind
   public install() {
-    const tl = this.ai.connection.useSharedConnection("localTimeline");
+    const tl = this.ai.connection.useSharedConnection('localTimeline');
 
-    tl.on("note", this.onLocalNote);
+    tl.on('note', this.onLocalNote);
 
     return {};
   }
@@ -23,27 +24,27 @@ export default class extends Module {
       const data = friend.getPerModulesData(this);
       if (!data.nextNotificationNotesCount) {
         data.nextNotificationNotesCount = this.getNextNotification(
-          note.user.notesCount + 1
+          note.user.notesCount + 1,
         );
         friend.setPerModulesData(this, data);
       }
       // ノート数キリ番
       else if (
         (friend.love || 0) >= 20 &&
-        ["public", "home"].includes(note.visibility) &&
+        ['public', 'home'].includes(note.visibility) &&
         !note.cw &&
         note.user.notesCount >= data.nextNotificationNotesCount - 1
       ) {
         const nc = data.nextNotificationNotesCount;
         data.nextNotificationNotesCount = this.getNextNotification(
-          note.user.notesCount + 1
+          note.user.notesCount + 1,
         );
         friend.setPerModulesData(this, data);
         setTimeout(() => {
-          this.ai.api("notes/create", {
+          this.ai.api('notes/create', {
             text: serifs.welcome.kiriban(nc, acct(note.user)),
             replyId: note.id,
-            visibility: "specified",
+            visibility: 'specified',
             visibleUserIds: [note.user.id],
           });
         }, 3000);
@@ -58,39 +59,42 @@ export default class extends Module {
         friend.save();
         if (note.isFirstNote) {
           setTimeout(() => {
-            this.ai.api("notes/create", {
+            this.ai.api('notes/create', {
               renoteId: note.id,
               localOnly: true,
+              ...(config.birthdayPostChannel
+                ? { channelId: config.birthdayPostChannel }
+                : {}),
             });
           }, 3000);
 
           setTimeout(() => {
-            this.ai.api("notes/reactions/create", {
+            this.ai.api('notes/reactions/create', {
               noteId: note.id,
-              reaction: ":neofox_heart:",
+              reaction: ':neofox_heart:',
             });
           }, 4500);
 
           setTimeout(() => {
-            this.ai.api("notes/reactions/create", {
+            this.ai.api('notes/reactions/create', {
               noteId: note.id,
-              reaction: ":youkoso_kangei_minazuki:",
+              reaction: ':youkoso_kangei_minazuki:',
             });
           }, 5500);
 
           setTimeout(() => {
-            this.ai.api("notes/reactions/create", {
+            this.ai.api('notes/reactions/create', {
               noteId: note.id,
-              reaction: ":agoogletada:",
+              reaction: ':agoogletada:',
             });
           }, 6500);
         }
 
         setTimeout(() => {
-          this.ai.api("notes/create", {
+          this.ai.api('notes/create', {
             text: serifs.welcome.welcome(acct(note.user)),
             replyId: note.id,
-            visibility: "specified",
+            visibility: 'specified',
             visibleUserIds: [note.user.id],
           });
         }, 8000);

@@ -8,4 +8,5 @@ export type User = {
   isRenoteMuted?: boolean;
   isBot: boolean;
   notesCount?: number;
+  alsoKnownAs?: any;
 };

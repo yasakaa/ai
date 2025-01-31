@@ -19,8 +19,16 @@ type Config = {
   instanceName?: string;
   /** 全公開での投稿を禁止？ */
   postNotPublic?: boolean;
+  /** 主に使用する公開範囲 */
+  defaultVisibility?: string;
   /** ランダムポストでローカルのみを使用？ */
   randomPostLocalOnly?: boolean;
+  /** ランダムポストで投稿するチャンネル */
+  randomPostChannel?: string;
+  /** 誕生日祝いでローカルのみを使用？ */
+  birthdayPostLocalOnly?: boolean;
+  /** 誕生日祝いで投稿するチャンネル */
+  birthdayPostChannel?: string;
   /** RPGでの主人公の名前 */
   rpgHeroName?: string;
   /** RPGでの通貨の名前 */
@@ -47,8 +55,10 @@ config.apiUrl = config.host + '/api';
 
 // 設定が存在しない場合はデフォルトを設定
 if (!config.instanceName) config.instanceName = '皆尽村';
+if (!config.defaultVisibility) config.defaultVisibility = 'public';
 if (!config.postNotPublic !== false) config.postNotPublic = false;
 if (!config.randomPostLocalOnly !== false) config.randomPostLocalOnly = true;
+if (!config.birthdayPostLocalOnly !== false) config.randomPostLocalOnly = true;
 if (!config.rpgHeroName) config.rpgHeroName = '阨ちゃん';
 if (!config.rpgCoinName) config.rpgCoinName = 'キレイなどんぐり';
 if (!config.rpgCoinShortName) config.rpgCoinShortName = 'どんぐり';

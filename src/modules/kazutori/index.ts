@@ -183,6 +183,15 @@ export default class extends Module {
           ? 5
           : 10;
 
+    if (
+      (this.ai.activeFactor >= 1 &&
+        Math.random() < 0.001 &&
+        new Date().getHours() < 14) ||
+      flg?.includes('lng')
+    ) {
+      limitMinutes *= 48;
+    }
+
     // 機嫌が低い場合、受付時間を延長
     if (this.ai.activeFactor < 0.75) {
       limitMinutes =
@@ -263,7 +272,7 @@ export default class extends Module {
 
       if (h > 0 && h < 8) {
         msg.reply(
-          '現在、数取り開催不可に指定されている時間なのじゃ。8時から開催を受け付けるのじゃ！',
+          '現在、数取り開催不可に指定されている時間です。8時から開催を受け付けます！',
         );
         return {
           reaction: 'hmm',
@@ -316,6 +325,12 @@ export default class extends Module {
         msg.includes(['med'])
       )
         flg += ' med';
+      if (
+        !msg.user.host &&
+        msg.user.username === config.master &&
+        msg.includes(['lng'])
+      )
+        flg += ' lng';
     }
 
     //TODO : このへんのセリフをserifに移行する
@@ -358,7 +373,7 @@ export default class extends Module {
     ) {
       msg
         .reply(
-          `\n${60 - Math.floor(time / 1000)}秒後にもう一度送って欲しいのじゃ！`,
+          `\n${60 - Math.floor(time / 1000)}秒後にもう一度送ってください！`,
           { visibility: 'specified' },
         )
         .then((reply) => {
@@ -386,7 +401,7 @@ export default class extends Module {
 
       msg
         .reply(
-          `\n公開投稿限定なのじゃ！\n参加するには${visibility ? '「' + visibility + '」ではなく、' : ''}「公開」または「ホーム」の公開範囲にてリプライしてほしいのじゃ～`,
+          `\n公開投稿限定です！\n参加するには${visibility ? '「' + visibility + '」ではなく、' : ''}「公開」または「ホーム」の公開範囲にてリプライしてくださいね～`,
         )
         .then((reply) => {
           game.replyKey.push(msg.userId);
@@ -400,7 +415,7 @@ export default class extends Module {
 
     // 既に数字を取っていたら
     if (game.votes.some((x) => x.user.id == msg.userId)) {
-      msg.reply('すでに投票済みの様なのじゃ！').then((reply) => {
+      msg.reply('すでに投票済みの様です！').then((reply) => {
         game.replyKey.push(msg.userId);
         this.games.update(game);
         this.subscribeReply(msg.userId, reply.id);
@@ -417,13 +432,11 @@ export default class extends Module {
       .replace(/[０-９]/g, (m) => '０１２３４５６７８９'.indexOf(m).toString())
       .match(/[0-9]+|∞/);
     if (match == null) {
-      msg
-        .reply('リプライの中に数字が見つからなかったのじゃ！')
-        .then((reply) => {
-          game.replyKey.push(msg.userId);
-          this.games.update(game);
-          this.subscribeReply(msg.userId, reply.id);
-        });
+      msg.reply('リプライの中に数字が見つかりませんでした！').then((reply) => {
+        game.replyKey.push(msg.userId);
+        this.games.update(game);
+        this.subscribeReply(msg.userId, reply.id);
+      });
       return {
         reaction: 'hmm',
       };
@@ -506,7 +519,7 @@ export default class extends Module {
           : game.maxnum.toString();
       msg
         .reply(
-          `\n「${strn}」は今回のゲームでは範囲外なのじゃ！\n0~${game.maxnum}の範囲で指定してほしいのじゃ！`,
+          `\n「${strn}」は今回のゲームでは範囲外です！\n0~${maxStr}の範囲で指定してくださいね！`,
         )
         .then((reply) => {
           game.replyKey.push(msg.userId);
