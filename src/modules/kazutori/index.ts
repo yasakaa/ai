@@ -272,7 +272,7 @@ export default class extends Module {
 
       if (h > 0 && h < 8) {
         msg.reply(
-          '現在、数取り開催不可に指定されている時間です。8時から開催を受け付けます！',
+          '現在、数取り開催不可に指定されている時間なのじゃ。8時から開催を受け付けるのじゃ！',
         );
         return {
           reaction: 'hmm',
@@ -336,7 +336,7 @@ export default class extends Module {
     //TODO : このへんのセリフをserifに移行する
     msg
       .reply(
-        '\n分かりました！数取りを開催します！\nあなたは開催1分後から数取りへの投票を行うことができます！\n（ダイレクトなら今すぐでも大丈夫です！）',
+        '\n分かったのじゃ！数取りを開催するのじゃ！\nそなたは開催1分後から数取りへの投票を行うことができるのじゃ！\n（ダイレクトなら今すぐでも大丈夫なのじゃ！）',
         { visibility: 'specified' },
       )
       .then((reply) => {
@@ -373,7 +373,7 @@ export default class extends Module {
     ) {
       msg
         .reply(
-          `\n${60 - Math.floor(time / 1000)}秒後にもう一度送ってください！`,
+          `\n${60 - Math.floor(time / 1000)}秒後にもう一度送って欲しいのじゃ！`,
           { visibility: 'specified' },
         )
         .then((reply) => {
@@ -401,7 +401,7 @@ export default class extends Module {
 
       msg
         .reply(
-          `\n公開投稿限定です！\n参加するには${visibility ? '「' + visibility + '」ではなく、' : ''}「公開」または「ホーム」の公開範囲にてリプライしてくださいね～`,
+          `\n公開投稿限定なのじゃ！\n参加するには${visibility ? '「' + visibility + '」ではなく、' : ''}「公開」または「ホーム」の公開範囲にてリプライしてほしいのじゃ～`,
         )
         .then((reply) => {
           game.replyKey.push(msg.userId);
@@ -415,7 +415,7 @@ export default class extends Module {
 
     // 既に数字を取っていたら
     if (game.votes.some((x) => x.user.id == msg.userId)) {
-      msg.reply('すでに投票済みの様です！').then((reply) => {
+      msg.reply('すでに投票済みの様なのじゃ！').then((reply) => {
         game.replyKey.push(msg.userId);
         this.games.update(game);
         this.subscribeReply(msg.userId, reply.id);
@@ -432,11 +432,13 @@ export default class extends Module {
       .replace(/[０-９]/g, (m) => '０１２３４５６７８９'.indexOf(m).toString())
       .match(/[0-9]+|∞/);
     if (match == null) {
-      msg.reply('リプライの中に数字が見つかりませんでした！').then((reply) => {
-        game.replyKey.push(msg.userId);
-        this.games.update(game);
-        this.subscribeReply(msg.userId, reply.id);
-      });
+      msg
+        .reply('リプライの中に数字が見つからなかったのじゃ！')
+        .then((reply) => {
+          game.replyKey.push(msg.userId);
+          this.games.update(game);
+          this.subscribeReply(msg.userId, reply.id);
+        });
       return {
         reaction: 'hmm',
       };
@@ -519,7 +521,7 @@ export default class extends Module {
           : game.maxnum.toString();
       msg
         .reply(
-          `\n「${strn}」は今回のゲームでは範囲外です！\n0~${maxStr}の範囲で指定してくださいね！`,
+          `\n「${strn}」は今回のゲームでは範囲外なのじゃ！\n0~${game.maxnum}の範囲で指定してほしいのじゃ！`,
         )
         .then((reply) => {
           game.replyKey.push(msg.userId);
