@@ -138,6 +138,8 @@ export type SkillEffect = {
   firstTurnMindMinusAvoid?: number;
   /** 最初のターンの道具の最低効果量をn*100以上にする */
   firstTurnItemChoice?: number;
+  /** 最初のターンは二刀流が可能になる 発動率は通常のn% */
+  firstTurnDoubleItem?: number;
   /** アイテム使用率がn%上昇 */
   itemEquip?: number;
   /** アイテム効果がn%上昇 デメリットがn%減少 */
@@ -552,6 +554,7 @@ export const skills: Skill[] = [
       firstTurnItem: 1,
       firstTurnMindMinusAvoid: 1,
       firstTurnItemChoice: 0.5,
+      firstTurnDoubleItem: 1,
     },
     unique: 'firstTurnItem',
   },
@@ -1802,10 +1805,12 @@ export function getTotalEffectString(data: any, skillX = 1): string {
       spd *= 1.1;
       skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.1;
     } else if (aggregateTokensEffects(data).greenMode) {
-      skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
-      skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
-      skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
-      skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+      skillEffects.itemEquip = (1 + (skillEffects.itemEquip ?? 0)) * 1.15 - 1;
+      skillEffects.itemBoost = (1 + (skillEffects.itemBoost ?? 0)) * 1.15 - 1;
+      skillEffects.mindMinusAvoid =
+        (1 + (skillEffects.mindMinusAvoid ?? 0)) * 1.15 - 1;
+      skillEffects.poisonAvoid =
+        (1 + (skillEffects.poisonAvoid ?? 0)) * 1.15 - 1;
     }
     if (aggregateTokensEffects(data).hyperMode) {
       skillEffects.postXUp = (skillEffects.postXUp ?? 0) + 0.005;
@@ -1919,7 +1924,7 @@ export function getTotalEffectString(data: any, skillX = 1): string {
 
   if (skillEffects.dark) {
     resultS.push(
-      '戦闘時行動回数低下率: ' +
+      '戦闘時敵行動回数低下率: ' +
         showNum((skillEffects.dark ?? 0) * 2 * 100) +
         '%',
     );
@@ -2209,17 +2214,44 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   }
   if (skillEffects.weaponSelect) {
     result.push(
-      '武器選択率: +' + showNum((skillEffects.weaponSelect ?? 0) * 100) + '%',
+      '武器選択率: +' +
+        showNum(
+          ((1 +
+            (skillEffects.weaponSelect ?? 0) / 4 +
+            (skillEffects.weaponSelect ?? 0)) /
+            (1 / 4) -
+            1) *
+            100,
+        ) +
+        '%',
     );
   }
   if (skillEffects.armorSelect) {
     result.push(
-      '防具選択率: +' + showNum((skillEffects.armorSelect ?? 0) * 100) + '%',
+      '防具選択率: +' +
+        showNum(
+          ((1 +
+            (skillEffects.armorSelect ?? 0) / 4 +
+            (skillEffects.armorSelect ?? 0)) /
+            (1 / 4) -
+            1) *
+            100,
+        ) +
+        '%',
     );
   }
   if (skillEffects.foodSelect) {
     result.push(
-      '食べ物選択率: +' + showNum((skillEffects.foodSelect ?? 0) * 100) + '%',
+      '食べ物選択率: +' +
+        showNum(
+          ((1 +
+            (skillEffects.foodSelect ?? 0) / 4 +
+            (skillEffects.foodSelect ?? 0)) /
+            (1 / 4) -
+            1) *
+            100,
+        ) +
+        '%',
     );
   }
   if (skillEffects.poisonAvoid) {

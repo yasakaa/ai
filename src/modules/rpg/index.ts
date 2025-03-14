@@ -831,10 +831,12 @@ export default class extends Module {
         spd += 1;
         skillEffects.defDmgUp = (skillEffects.defDmgUp ?? 0) - 0.1;
       } else if (aggregateTokensEffects(data).greenMode) {
-        skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
-        skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
-        skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
-        skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+        skillEffects.itemEquip = (1 + (skillEffects.itemEquip ?? 0)) * 1.15 - 1;
+        skillEffects.itemBoost = (1 + (skillEffects.itemBoost ?? 0)) * 1.15 - 1;
+        skillEffects.mindMinusAvoid =
+          (1 + (skillEffects.mindMinusAvoid ?? 0)) * 1.15 - 1;
+        skillEffects.poisonAvoid =
+          (1 + (skillEffects.poisonAvoid ?? 0)) * 1.15 - 1;
       }
     }
 
@@ -1490,13 +1492,15 @@ export default class extends Module {
               `行動回数+1！\nダメージカット+10%！\n${customStr}`,
             ) + `\n`;
       } else if (aggregateTokensEffects(data).greenMode) {
-        skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
-        skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
-        skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
-        skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+        skillEffects.itemEquip = (1 + (skillEffects.itemEquip ?? 0)) * 1.15 - 1;
+        skillEffects.itemBoost = (1 + (skillEffects.itemBoost ?? 0)) * 1.15 - 1;
+        skillEffects.mindMinusAvoid =
+          (1 + (skillEffects.mindMinusAvoid ?? 0)) * 1.15 - 1;
+        skillEffects.poisonAvoid =
+          (1 + (skillEffects.poisonAvoid ?? 0)) * 1.15 - 1;
         if (!color.alwaysSuper)
           message +=
-            serifs.rpg.customSuper(me, `全アイテム効果+10%！\n${customStr}`) +
+            serifs.rpg.customSuper(me, `全アイテム効果+15%！\n${customStr}`) +
             `\n`;
       }
     }
@@ -1614,7 +1618,7 @@ export default class extends Module {
         const items = rpgItems.filter((x) =>
           isPlus ? x.mind > 0 : x.mind < 0,
         );
-        item = items[Math.floor(Math.random() * items.length)];
+        item = { ...items[Math.floor(Math.random() * items.length)] };
       } else {
         let types = ['weapon', 'armor'];
         for (let i = 0; i < (skillEffects.weaponSelect ?? 0); i++) {
@@ -1661,10 +1665,10 @@ export default class extends Module {
           const items = rpgItems.filter(
             (x) => x.type === type && (isPlus ? x.mind > 0 : x.mind < 0),
           );
-          item = items[Math.floor(Math.random() * items.length)];
+          item = { ...items[Math.floor(Math.random() * items.length)] };
         } else {
           const items = rpgItems.filter((x) => x.type === type && x.effect > 0);
-          item = items[Math.floor(Math.random() * items.length)];
+          item = { ...items[Math.floor(Math.random() * items.length)] };
         }
       }
       const mindMsg = (mind) => {
@@ -2505,8 +2509,8 @@ export default class extends Module {
             data.escape = 0;
             // 敗北で能力上昇ボーナス
             bonus += Math.floor(2 * (1 + (skillEffects.loseBonus ?? 0)));
-            data.atk = (data.atk ?? 0) + bonus;
-            data.def = (data.def ?? 0) + bonus;
+            //data.atk = (data.atk ?? 0) + bonus;
+            //data.def = (data.def ?? 0) + bonus;
           }
           // 食いしばり成功率を上げる
           data.endure = (data.endure ?? 0) + 1;
@@ -2555,6 +2559,12 @@ export default class extends Module {
 
     if (totalUp > (data.maxStatusUp ?? 7)) data.maxStatusUp = totalUp;
 
+    if (bonus) {
+      atkUp += Math.round(bonus);
+      totalUp += Math.round(bonus * 2);
+      bonus = 0;
+    }
+
     if (
       skillEffects.statusBonus &&
       skillEffects.statusBonus > 0 &&
@@ -2582,8 +2592,8 @@ export default class extends Module {
 
     if (
       (data.maxEndress ?? -1) >= 99 &&
-      (!data?.enemy?.name || data.enemy.name === endressEnemy(data).name) &&
-      Math.random() < 0.8
+      calcSevenFever([data.atk, data.def]) > 0 &&
+      (!data?.enemy?.name || data.enemy.name === endressEnemy(data).name)
     ) {
       if (calcSevenFever([data.atk]) > calcSevenFever([data.def])) atkUp = 0;
       if (calcSevenFever([data.atk]) < calcSevenFever([data.def]))

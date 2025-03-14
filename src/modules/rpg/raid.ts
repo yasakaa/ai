@@ -502,6 +502,9 @@ function finish(raid: Raid) {
     if (!friend) return;
     const data = friend.getPerModulesData(module_);
     data.coin = Math.max((data.coin ?? 0) + (score ?? 4), data.coin);
+    const winCount = sortAttackers.filter((y) => x.dmg > y.dmg).length;
+    const loseCount = sortAttackers.filter((y) => x.dmg < y.dmg).length;
+    data.raidAdjust = (data.raidAdjust ?? 0) + (winCount - loseCount);
     friend.setPerModulesData(module_, data);
   });
 
@@ -656,11 +659,42 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
     skillEffects = aggregateSkillsEffects(data);
   }
 
+  const skillsStr = getSkillsShortName(data);
+
+  let amuletGetFlg = false;
+
+  if (data.lv >= 20) {
+    if (data.noAmuletCount == null) data.noAmuletCount = 0;
+    if (
+      !skillEffects.noAmuletAtkUp &&
+      !skillsStr.amulet &&
+      Math.random() < 0.1 + (data.noAmuletCount + 18) * 0.05
+    ) {
+      amuletGetFlg = true;
+      data.noAmuletCount = -18;
+      data.items.push({
+        name: `謎のお守り`,
+        price: 1,
+        desc: `貰ったお守り。よくわからないが不思議な力を感じる…… 持っていると何かいい事があるかもしれない。`,
+        type: 'amulet',
+        effect: { stockRandomEffect: 1 },
+        durability: 1,
+        short: '？',
+      });
+      // スキル効果を再度読み込み
+      if (enemy.skillX) {
+        skillEffects = aggregateSkillsEffectsSkillX(data, enemy.skillX);
+      } else {
+        skillEffects = aggregateSkillsEffects(data);
+      }
+    } else if (!skillEffects.noAmuletAtkUp && !skillsStr.amulet) {
+      data.noAmuletCount = (data.noAmuletCount ?? 0) + 1;
+    }
+  }
+
   const stockRandomResult = stockRandom(data, skillEffects);
 
   skillEffects = stockRandomResult.skillEffects;
-
-  const skillsStr = getSkillsShortName(data);
 
   /** 現在の敵と戦ってるターン数。 敵がいない場合は1 */
   let count = 1;
@@ -746,12 +780,18 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
   /** バフを得た数。行数のコントロールに使用 */
   let buff = 0;
 
+  if (amuletGetFlg) {
+    message += serifs.rpg.giveAmulet + `\n\n`;
+    skillsStr.amulet = `[？]`;
+  }
+
   if (enemy.skillX && lv >= 20) {
     message += serifs.rpg.skillX(enemy.skillX) + `\n\n`;
   }
 
   if (stockRandomResult.activate) {
     message += serifs.rpg.skill.stockRandom + `\n\n`;
+    skillsStr.amulet = `[${stockRandomResult.activateStr}]`;
   }
 
   if (enemy.forcePostCount) {
@@ -842,6 +882,11 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
   }
   atk = Math.round(atk * (0.75 + bonusX));
   def = Math.round(def * (0.75 + bonusX));
+
+  if (data.raidAdjust > 0) {
+    atk = Math.round(atk * (1 / (1 + data.raidAdjust * 0.005)));
+    def = Math.round(def * (1 / (1 + data.raidAdjust * 0.005)));
+  }
 
   /** 敵の最大HP */
   let enemyMaxHp = 100000;
@@ -937,13 +982,15 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
             `行動回数+${up}！\nダメージカット+10%！\n${customStr}`,
           ) + `\n`;
     } else if (aggregateTokensEffects(data).greenMode) {
-      skillEffects.itemEquip = (skillEffects.itemEquip ?? 0) + 0.1;
-      skillEffects.itemBoost = (skillEffects.itemBoost ?? 0) + 0.1;
-      skillEffects.mindMinusAvoid = (skillEffects.mindMinusAvoid ?? 0) + 0.1;
-      skillEffects.poisonAvoid = (skillEffects.poisonAvoid ?? 0) + 0.1;
+      skillEffects.itemEquip = (1 + (skillEffects.itemEquip ?? 0)) * 1.15 - 1;
+      skillEffects.itemBoost = (1 + (skillEffects.itemBoost ?? 0)) * 1.15 - 1;
+      skillEffects.mindMinusAvoid =
+        (1 + (skillEffects.mindMinusAvoid ?? 0)) * 1.15 - 1;
+      skillEffects.poisonAvoid =
+        (1 + (skillEffects.poisonAvoid ?? 0)) * 1.15 - 1;
       if (!color.alwaysSuper)
         message +=
-          serifs.rpg.customSuper(me, `全アイテム効果+10%！\n${customStr}`) +
+          serifs.rpg.customSuper(me, `全アイテム効果+15%！\n${customStr}`) +
           `\n`;
     }
   }
@@ -1108,7 +1155,11 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
 
     if (skillEffects.berserk) {
       const berserkDmg = Math.min(
-        Math.floor(playerMaxHp * (skillEffects.berserk ?? 0)),
+        Math.floor(
+          playerMaxHp *
+            Math.min(playerHpPercent * 2, 1) *
+            (skillEffects.berserk ?? 0),
+        ),
         playerHp - 1,
       );
       playerHp -= berserkDmg;
@@ -1198,7 +1249,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
         const items = rpgItems.filter((x) =>
           isPlus ? x.mind > 0 : x.mind < 0,
         );
-        item = items[Math.floor(Math.random() * items.length)];
+        item = { ...items[Math.floor(Math.random() * items.length)] };
       } else {
         let types = ['weapon', 'armor'];
         for (let i = 0; i < (skillEffects.weaponSelect ?? 0); i++) {
@@ -1251,7 +1302,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
                 !skillEffects.firstTurnItemChoice ||
                 x.mind >= skillEffects.firstTurnItemChoice * 100),
           );
-          item = items[Math.floor(Math.random() * items.length)];
+          item = { ...items[Math.floor(Math.random() * items.length)] };
         } else {
           const items = rpgItems.filter(
             (x) =>
@@ -1261,7 +1312,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
                 !skillEffects.firstTurnItemChoice ||
                 x.effect >= skillEffects.firstTurnItemChoice * 100),
           );
-          item = items[Math.floor(Math.random() * items.length)];
+          item = { ...items[Math.floor(Math.random() * items.length)] };
         }
       }
       const mindMsg = (mind) => {
@@ -2519,6 +2570,13 @@ export async function getTotalDmg3(msg, enemy: RaidEnemy) {
   // 所持しているスキル１つ度に、器用さ＋３
   dex += (data.skills?.length ?? 0) * 3;
 
+  if ((data.hatogurumaExp ?? 0) > 1) {
+    buff += 1;
+    const expBonus = Math.min(0.3, data.hatogurumaExp / 100);
+    message += `経験 器用さ+${Math.round(expBonus * 100)}%` + `\n`;
+    dex = dex * (1 + expBonus);
+  }
+
   if (skillEffects.notBattleBonusAtk >= 0.7) {
     buff += 1;
     message +=
@@ -2668,6 +2726,24 @@ export async function getTotalDmg3(msg, enemy: RaidEnemy) {
 
   // バフが1つでも付与された場合、改行を追加する
   if (buff > 0) message += '\n';
+  buff = 0;
+
+  if (dex < 150 && Math.random() < 0.1) {
+    buff += 1;
+    message +=
+      `${config.rpgHeroName}は調子が良さそうだ！\n器用さ+${Math.round((150 - dex) * 0.3)}%！` +
+      `\n`;
+    dex += Math.round((150 - dex) * 0.3);
+  } else if (fix < 0.75 && Math.random() < 0.1) {
+    buff += 1;
+    message +=
+      `${config.rpgHeroName}は集中している！\n仕上げ+${Math.round((0.75 - fix) * 0.3 * 100)}%！` +
+      `\n`;
+    fix += (0.75 - fix) * 0.3;
+  }
+
+  // バフが1つでも付与された場合、改行を追加する
+  if (buff > 0) message += '\n';
 
   if (dex < 3) dex = 3;
 
@@ -2718,6 +2794,8 @@ export async function getTotalDmg3(msg, enemy: RaidEnemy) {
   else imageMsg = '伝説に残るであろう';
 
   message += `${imageMsg}鳩車を作って提出した！` + `\n\n`;
+
+  data.hatogurumaExp = (data.hatogurumaExp ?? 0) + (100 - totalDmg) / 100;
 
   if (!data.raidScore) data.raidScore = {};
   if (!data.raidScore[enemy.name] || data.raidScore[enemy.name] < totalDmg) {
