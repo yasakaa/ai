@@ -210,6 +210,13 @@ export type SkillEffect = {
   guardAtkUp?: number;
   distributed?: number;
   beginner?: number;
+  pride?: number;
+  greed?: number;
+  envy?: number;
+  wrath?: number;
+  lust?: number;
+  gluttony?: number;
+  sloth?: number;
 };
 
 export type Skill = {
@@ -744,6 +751,46 @@ export const skills: Skill[] = [
     info: `パワー・防御+10% クリティカル率+10% ダメージ軽減+10% 同じスキルを持つ度に全ての効果-4%（お守りは対象外）`,
     effect: { distributed: 0.1 },
     unique: 'distributed',
+  },
+  {
+    name: `傲慢の力`,
+    short: '**傲**',
+    desc: `敵が弱いほどパワーが大きく上昇します`,
+    info: '最大体力の10%以下のダメージを受ける度に、その戦いの間常にパワー+15%\nただし、最大体力の30%以上のダメージを受けた場合、そのダメージは2倍になる\nさらに連勝補正の減少を半減させ、たまに無効化する',
+    effect: { pride: 0.15 },
+    notLearn: true,
+  },
+  {
+    name: `強欲の力`,
+    short: '**欲**',
+    desc: `大好きな種類の道具を毎ターン必ず持てますが、悪い道具も出やすくなります`,
+    info: 'アイテム装備率MAX 大好き系のスキルの選択率MAX 道具効果がランダムで最大-50%',
+    effect: { greed: 0.5 },
+    notLearn: true,
+  },
+  {
+    name: `憤怒の力`,
+    short: '**憤**',
+    desc: `体力が半減した状態でスタートしますが、クリティカルダメージが大きく上昇します`,
+    info: '体力半減でスタート クリティカルダメージ+40%',
+    effect: { wrath: 0.4 },
+    notLearn: true,
+  },
+  {
+    name: `暴食の力`,
+    short: '**暴**',
+    desc: `何かを食べた際にパワーが上がります さらに食べる程効果が上がります 食べてはいけない物を食べた場合にさらに効果が上がります`,
+    info: '何かを食べる度、その戦いの間常にパワー+10% 毒を食べた場合パワー+20%',
+    effect: { gluttony: 0.2 },
+    notLearn: true,
+  },
+  {
+    name: `怠惰の力`,
+    short: '**怠**',
+    desc: `時々怠けて行動をしなくなりますが、怠けた後は強くなります`,
+    info: '30%で怠ける 怠ける度に、その戦いの間常にパワー+50%',
+    effect: { sloth: 0.5 },
+    notLearn: true,
   },
 ];
 

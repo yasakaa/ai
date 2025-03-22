@@ -285,6 +285,18 @@ export const shopItems: ShopItem[] = [
     always: true,
   },
   {
+    name: `質問カードの札`,
+    limit: (data) =>
+      false &&
+      data.lv >= 384 &&
+      !data.items.filter((x) => x.name === '質問カードの札').length,
+    price: 50,
+    desc: `スキル変更時に新たなスキルを3択+変更しないの中から**選択**出来るようになります`,
+    type: 'token',
+    effect: { selectSkill: true },
+    always: true,
+  },
+  {
     name: 'スキル変更珠',
     desc: 'スキルを変更するのに必要なアイテムです',
     limit: (data) =>
@@ -695,6 +707,18 @@ export const shopItems: ShopItem[] = [
     isUsed: (data) => true,
   } as AmuletItem,
   {
+    name: `魔力のお守り`,
+    limit: (data) =>
+      false && !data.items.filter((x) => x.name === '魔法のお守り').length,
+    price: 40,
+    desc: `持っていると魔力を溜め込めるようになる (魔力最大値+3・チャージ+2) 耐久20 使用時耐久減少`,
+    type: 'amulet',
+    effect: { magicMax: 3, magicCharge: 2 },
+    durability: 20,
+    short: '魔',
+    isUsed: (data) => true,
+  } as AmuletItem,
+  {
     name: `ダイジェストフィルム`,
     limit: (data) =>
       data.lv >= 255 &&
@@ -898,7 +922,7 @@ const eventAmulet = (data?) => {
   const m = new Date().getMonth() + 1;
   const d = new Date().getDate();
   const dy = new Date().getDay();
-  if (data.lv <= 255) {
+  if (data.lv >= 255) {
     if (dy == 0) {
       return [
         '雷属性妖術＋',
@@ -909,7 +933,7 @@ const eventAmulet = (data?) => {
     }
     if (dy == 1) {
       return [
-        '闇属性妖術＋',
+        Math.random() < 0.5 ? '闇属性妖術＋' : '暴食の力',
         ...[
           '粘り強い',
           `${serifs.rpg.status.def}アップ`,
@@ -935,7 +959,7 @@ const eventAmulet = (data?) => {
     }
     if (dy == 3) {
       return [
-        '氷属性妖術＋',
+        Math.random() < 0.5 ? '氷属性妖術＋' : '傲慢の力',
         ...[
           '毒属性妖術',
           '慎重',
@@ -948,7 +972,7 @@ const eventAmulet = (data?) => {
     }
     if (dy == 4) {
       return [
-        '風属性妖術＋',
+        Math.random() < 0.5 ? '風属性妖術＋' : `強欲の力`,
         ...[
           'テキパキこなす',
           '道具大好き',
@@ -961,7 +985,7 @@ const eventAmulet = (data?) => {
     }
     if (dy == 5) {
       return [
-        '光属性妖術＋',
+        Math.random() < 0.5 ? '光属性妖術＋' : `怠惰の力`,
         ...['油断しない', '７フィーバー！', '天国か地獄か', '不運チャージ']
           .sort(() => 0.5 - Math.random())
           .slice(0, Math.random() < 0.2 ? 3 : 2),
@@ -969,7 +993,7 @@ const eventAmulet = (data?) => {
     }
     if (dy == 6) {
       return [
-        '土属性妖術＋',
+        Math.random() < 0.5 ? '土属性妖術＋' : `憤怒の力`,
         ...[
           '疲れにくい',
           'クリティカル性能上昇',

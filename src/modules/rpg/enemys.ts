@@ -1388,7 +1388,7 @@ export const raidEnemys: RaidEnemy[] = [
     def: 1,
     atkx: 1,
     defx: 1,
-    power: 15,
+    power: 14.2,
     pattern: 2,
   },
   {

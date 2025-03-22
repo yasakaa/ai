@@ -513,6 +513,7 @@ export default {
       `阨ちゃんの全力の一撃！\n${dmg}ポイントのダメージを与えた！`,
     timeUp: (enemyName, maxHp) =>
       `${enemyName}の最後の一撃！\n阨ちゃんは${'9'.repeat(String(maxHp).length)}ポイントのダメージ！`,
+    timeUp2: `${config.rpgHeroName}は全力を出してヘトヘトだ！`,
     totalDmg: (dmg) => `合計 ${dmg} ダメージを与えた！`,
     hiScore: (old, dmg) => `自己ベスト更新！\n${old} -> **${dmg}**`,
     GlobalHiScore: (old, date, dmg) =>
