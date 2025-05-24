@@ -149,6 +149,14 @@ const canBankItems: ShopItem[] = [
     always: true,
   } as TokenItem,
   {
+    name: `お守り確認の札`,
+    price: 5,
+    desc: `持っていると通常ショップにてお守りを持っている状態でもお守りが並ぶようになります`,
+    type: 'token',
+    effect: { alwaysAmulet: true },
+    always: true,
+  } as TokenItem,
+  {
     name: `超覚醒の札`,
     price: 50,
     desc: `持っていると覚醒時の投稿数増加ボーナスを失いますが、投稿数による効果が10%上がります`,
@@ -183,7 +191,7 @@ const canBankItems: ShopItem[] = [
   {
     name: `覚醒変更の札（翠）`,
     price: 50,
-    desc: `覚醒時の行動回数増加を失いますが、代わりに全ての道具効果+10%を得るようになります 4色のうちどれか1つしか発動しません`,
+    desc: `覚醒時の行動回数増加を失いますが、代わりに全ての道具効果+15%を得るようになります 4色のうちどれか1つしか発動しません`,
     type: 'token',
     effect: { notSuperSpeedUp: true, greenMode: true },
     always: true,
@@ -197,6 +205,7 @@ const bankItemsDesc2 = {
   全身全霊のお札: '複数回行動するようになるが、一撃は軽くなる',
   運命不変のお札: '与ダメージがランダム変化するようになる',
   しあわせのお札: 'ステータスの割合がランダムに一時的に変化しなくなる',
+  お守り確認の札: 'お守り所持時にショップにお守りが出現しなくなる',
   超覚醒の札:
     '覚醒時の投稿数増加ボーナスを得られますが、投稿数効果上昇を失います',
   修繕の札: '通常通りお守りが壊れるようになります',
@@ -238,7 +247,7 @@ export const shop2Items: ShopItem[] = [
           !data.nextSkill &&
           countDuplicateSkillNames(data.skills) === 0 &&
           data.skills.every((x) => x.name !== '分散型'),
-        price: (data, rnd, ai) => skillPrice(ai, x.name, rnd),
+        price: (data, rnd, ai) => 1,
         desc: `購入すると次のスキル変更時に必ず「${x.name}」${x.desc ? `（${x.desc}）` : ''}を習得できる（複製時は対象外）`,
         type: 'item',
         effect: (data) => {
@@ -272,7 +281,7 @@ export const shop2Items: ShopItem[] = [
       (data.maxSpd ?? 0) < 5 &&
       !data.items.filter((x) => x.name === '行動加速のお札').length,
     price: (data) => 370 - (data.maxSpd ?? 0) * 70,
-    desc: `持っていると${config.rpgHeroName}の懐き度に関係なく最低5回行動できるようになる`,
+    desc: `${config.rpgHeroName}が最低5回行動できるようになります`,
     type: 'token',
     effect: { fivespd: true },
     always: true,
@@ -333,7 +342,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: `浄化の水晶`,
     limit: (data) => data.skills.filter((x) => x.cantReroll).length,
-    price: 50,
+    price: 5,
     desc: `${config.rpgHeroName}が持っている変更不可のスキルを変更可能なスキルに置き換えます ただしステータスが変動する可能性があります`,
     type: 'item',
     effect: resetCantRerollSkill,
@@ -395,7 +404,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '超・力の種',
     desc: '購入時、防御10%をパワーに移動',
-    price: 25,
+    price: 10,
     type: 'item',
     effect: (data) => {
       data.atk = Math.round((data.atk ?? 0) + Math.round((data.def ?? 0) / 10));
@@ -407,7 +416,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '極・力の種',
     desc: '購入時、防御30%をパワーに移動',
-    price: 75,
+    price: 10,
     type: 'item',
     effect: (data) => {
       data.atk = Math.round(
@@ -476,7 +485,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '超・守りの種',
     desc: '購入時、パワー10%を防御に移動',
-    price: 25,
+    price: 10,
     type: 'item',
     effect: (data) => {
       data.def = Math.round((data.def ?? 0) + Math.round((data.atk ?? 0) / 10));
@@ -488,7 +497,7 @@ export const shop2Items: ShopItem[] = [
   {
     name: '極・守りの種',
     desc: '購入時、パワー30%を防御に移動',
-    price: 75,
+    price: 10,
     type: 'item',
     effect: (data) => {
       data.def = Math.round(
@@ -621,7 +630,7 @@ export const shop2Items: ShopItem[] = [
               .filter((y) => y.unique)
               .map((y) => y.unique)
               .includes(x.unique)),
-        price: (data, rnd, ai) => skillPrice(ai, x.name, rnd),
+        price: (data, rnd, ai) => Math.ceil(skillPrice(ai, x.name, rnd) / 2),
         desc: `購入すると次のスキル変更時に必ず「${x.name}」${x.desc ? `（${x.desc}）` : ''}を習得できる（複製時は対象外）`,
         type: 'item',
         effect: (data) => {
@@ -654,10 +663,11 @@ export const shop2Reply = async (module: rpg, ai: 藍, msg: Message) => {
   let filteredShopItems = shop2Items.filter(
     (x) =>
       (!x.limit || x.limit(data, rnd)) &&
-      !(
-        x.type === 'amulet' &&
-        (data.lv < 20 || data.items?.some((y) => y.type === 'amulet'))
-      ) &&
+      (aggregateTokensEffects(data).alwaysAmulet ||
+        !(
+          x.type === 'amulet' &&
+          (data.lv < 20 || data.items?.some((y) => y.type === 'amulet'))
+        )) &&
       !x.always,
   );
 

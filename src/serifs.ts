@@ -1,4 +1,5 @@
 // せりふ
+
 import config from './config';
 
 export default {
@@ -100,9 +101,17 @@ export default {
         name ? `おかえりなのじゃ、${name}！` : 'おかえりなのじゃ！',
     },
 
+    arigatou: {
+      normal: [
+        `どういたしましてなのじゃー！`,
+        `こちらこそ遊んでくれてありがとうなのじゃ！`,
+        `気にしないでほしいのじゃ！また何か有ったら呼んでほしいのじゃ！`,
+      ],
+    },
+
     itterassyai: {
       love: (name) =>
-        name ? `いってらっしゃい、${name}♪` : 'いってらっしゃい♪',
+        name ? `いってらっしゃい、${name}！` : 'いってらっしゃい！',
 
       normal: (name) =>
         name ? `いってらっしゃい、${name}！` : 'いってらっしゃい！',
@@ -114,7 +123,12 @@ export default {
     invalidName:
       'ど、どうやって発音するのじゃ？わらわにはわからないのじゃ もっと簡単な呼び名にしてくれんかの',
 
-    ngName: 'その名前は覚えたくないのじゃ…',
+    ngName: 'その名前は覚えたくないのじゃ...',
+
+    unixtime: (dateStr, isoStr, unixtimeStr) =>
+      `\n\`${dateStr}\` / \`${isoStr}\`のunixtimeは、\n\n\`${unixtimeStr}\` です！\n\n\n\`$[unixtime ${unixtimeStr}]\`\n\n$[unixtime ${unixtimeStr}]`,
+
+    invalidDate: '日付がよくわからなかったのじゃ...',
 
     nadenade: {
       normal: 'ひゃっ…！ びっくりしたのじゃ',
@@ -236,13 +250,6 @@ export default {
       `${res}${total ? `\n合計 \\(${total}\\)` : ''} であるぞ！`,
   },
 
-  welcome: {
-    welcome: (acct) =>
-      `${acct}さん\n**皆尽村にようこそなのじゃ**\nわらわは阨（あい）という将来大九尾になることが約束されたとってもすごーいキツネさんなのじゃ\nわらわは寛大なのでおぬしがしたいときに挨拶したり話しかけたり遊んでくれたりしてもよいんじゃぞ！\nこれからよろしくなのじゃ！\nこの村でなにかわからないことがあったときはわらわではなく村長(magi)に声をかけてほしいぞ！\nおぬしがこれから村で楽しく生活できるといいのう！`,
-    kiriban: (count, name) =>
-      `${name ? `${name}さん、` : ''}${count}投稿 おめでとうなのじゃ🎉`,
-  },
-
   birthday: {
     happyBirthday: (name) =>
       name
@@ -252,6 +259,13 @@ export default {
       name
         ? `今日は${acct}(${name})のお誕生日みたいじゃ！\n${name}、お誕生日おめでとうなのじゃ🎉`
         : `今日は${acct}のお誕生日みたいじゃ！\nお誕生日おめでとうなのじゃ🎉`,
+  },
+
+  welcome: {
+    welcome: (acct) =>
+      `${acct}さん\n**皆尽村にようこそなのじゃ**\nわらわは阨（あい）という将来大九尾になることが約束されたとってもすごーいキツネさんなのじゃ\nわらわは寛大なのでおぬしがしたいときに挨拶したり話しかけたり遊んでくれたりしてもよいんじゃぞ！\nこれからよろしくなのじゃ！\nこの村でなにかわからないことがあったときはわらわではなく村長(magi)に声をかけてほしいぞ！\nおぬしがこれから村で楽しく生活できるといいのう！`,
+    kiriban: (count, name) =>
+      `${name ? `${name}さん、` : ''}${count}投稿 おめでとうなのじゃ🎉`,
   },
 
   /**
@@ -379,6 +393,7 @@ export default {
     onagare: (item) =>
       `遊んでくれる人数が集まらなかったので今回はやっぱりげえむはなしじゃ…\n仕方ないので${item}はわらわがもらっておくぞ…`,
   },
+
   /**
    * 絵文字生成
    */
@@ -500,7 +515,7 @@ export default {
     intro: (enemyName, time) =>
       `<center>$[x3 ${enemyName}]\n\nすごく大きい敵がやってきたのじゃ！\n\nこのままだと村が\n滅びてしまうのじゃ…\n皆で力を合わせて鎮めようぞ！\n\nこの投稿に返信して\n一緒に戦ってほしいのじゃ！\n(参加条件:RPGモードを遊んだ経験がある)\n\n</center>`,
     onagare: (enemyName) =>
-      `${enemyName}は暴れまわったのち、帰っていったのじゃ……`,
+      `${enemyName}は暴れまわったのち、帰っていったのじゃ………\n討伐隊の評判が大きく下がったのじゃ……`,
     onagare2: (enemyName) =>
       `${enemyName}コンテストの参加者はいなかったのじゃ……`,
     finishCw: (enemyName) => `${enemyName}討滅戦の結果発表なのじゃ！`,
@@ -514,12 +529,14 @@ export default {
     timeUp: (enemyName, maxHp) =>
       `${enemyName}の最後の一撃！\n阨ちゃんは${'9'.repeat(String(maxHp).length)}ポイントのダメージ！`,
     timeUp2: `${config.rpgHeroName}は全力を出してヘトヘトだ！`,
-    totalDmg: (dmg) => `合計 ${dmg} ダメージを与えた！`,
-    hiScore: (old, dmg) => `自己ベスト更新！\n${old} -> **${dmg}**`,
-    GlobalHiScore: (old, date, dmg) =>
-      `ベストダメージ更新！\n${old}(${date}) -> **${dmg}**`,
+    totalDmg: (dmg) => `合計 ${dmg.toLocaleString()} ダメージを与えた！`,
+    hiScore: (old: number, dmg: number) =>
+      `自己ベスト更新！\n${old.toLocaleString()} -> **${dmg.toLocaleString()}**`,
+    GlobalHiScore: (old: number, date, dmg: number) =>
+      `ベストダメージ更新！\n${old.toLocaleString()}(${date}) -> **${dmg.toLocaleString()}**`,
     expPoint: (exp: number) =>
       `RPGモードで1つレベルが上がるまでに\nレイドボスに5回参加で\nレイドでのレベルアップが発生！\nレイド経験値: ${'◆'.repeat(exp) + '◇'.repeat(Math.max(5 - exp, 0))}`,
+    expPointFast: `レイドレベルアップイベント開催中！\nLv255まで毎回レイドボスでレベルアップ！`,
     nowStatus: '現在のステータス',
     lvUp: '今回のレベルアップ :',
     rpgMode: 'RPGモード : ',
@@ -529,7 +546,7 @@ export default {
       atk: 'パワー',
       def: '防御',
       spd: '行動回数',
-      coin: 'キレイなどんぐり',
+      coin: config.rpgCoinName,
       skill: 'スキル',
       post: '投稿数',
       pen: '防御貫通',
@@ -540,9 +557,8 @@ export default {
       give: '与ダメージ',
       take: '被ダメージ',
     },
-
     tired: (date, canOkawari, showHelp) =>
-      `RPGモードは0~11時、12~17時、18~23時の1日3回なのじゃ。\n${date.getHours() < 12 ? '12時以降' : date.getHours() < 18 ? '18時以降' : '明日'}になったらもう一度試して欲しいのじゃ。${canOkawari ? '\n（おかわりをプレイしたい場合は、「rpg おかわり」と話しかけてください）' : ''}${showHelp ? '\n何か他の事をしようとして間違ったということなら、「RPG ヘルプ」と聞いてくれば機能を教えてやらんこともないぞ' : ''}`,
+      `RPGモードは0~11時、12~17時、18~23時の1日3回なのじゃ。\n${date.getHours() < 12 ? '12時以降' : date.getHours() < 18 ? '18時以降' : '明日'}になったらもう一度試してほしいのじゃ。${canOkawari ? '\n（おかわりをプレイしたい場合は、「rpg おかわり」と話しかけてほしいのじゃ）' : ''}${showHelp ? '\n何か他の事をしようとして間違った際は、「RPG ヘルプ」を見てみると良いかもしれないのじゃ！' : ''}`,
     start: '開始！',
     end: '終了！',
     turn: 'ターン目',
@@ -555,7 +571,7 @@ export default {
       `$[x2 ${me}]\n\n**${config.rpgHeroName}は覚醒状態になった！**\n行動回数+**${num}**！\nパワー・防御が**超**アップ！`,
     customSuper: (me, customStr) =>
       `$[x2 ${me}]\n\n**${config.rpgHeroName}は覚醒状態になった！**\n${customStr}`,
-    spdUp: '阨ちゃんは体の調子が良さそうだ！\n行動回数+1！',
+    spdUp: `${config.rpgHeroName}は体の調子が良さそうだ！\n行動回数+1！`,
     skill: {
       firstItem: 'スキル「準備を怠らない」発動！\n',
       spdDown: (enemyName) =>
@@ -576,33 +592,33 @@ export default {
       sevenFeverRaid: `スキル「７フィーバー！」発動！\nステータスがアップ！`,
       charge: `スキル「不運チャージ」発動！\n次回、良い事あるかも！`,
       enemyStatusBonus: `スキル「強敵と戦うのが好き」発動！\nパワー・防御がアップした！`,
-      firstTurnResist: `スキル「油断せず行こう」発動！\n阨ちゃんは相手を警戒している…`,
-      tenacious: `スキル「粘り強い」発動！\n阨ちゃんの防御がアップ！`,
+      firstTurnResist: `スキル「油断せず行こう」発動！\n${config.rpgHeroName}は相手を警戒している…`,
+      tenacious: `スキル「粘り強い」発動！\n${config.rpgHeroName}の防御がアップ！`,
       lowHpFood: `スキル「お腹が空いてから食べる」発動！\n`,
       amuletBoost: `スキル「お守り整備」発動！\nお守りの耐久は減らなかった！`,
-      heaven: `スキル「天国か地獄か」発動！\n阨ちゃんのステータスがアップ！`,
-      hell: `スキル「天国か地獄か」発動！\n阨ちゃんのステータスがダウン…`,
+      heaven: `スキル「天国か地獄か」発動！\n${config.rpgHeroName}のステータスがアップ！`,
+      hell: `スキル「天国か地獄か」発動！\n${config.rpgHeroName}のステータスがダウン…`,
       fortune: `「しあわせのお守り」発動！`,
       fortuneToken: `「しあわせのお札」発動！`,
       berserk: (berserkDmg) =>
-        `「バーサクのお守り」発動！\n${berserkDmg}ポイントのダメージを受けた！\n阨ちゃんのパワーがアップ！`,
+        `「バーサクのお守り」発動！\n${berserkDmg}ポイントのダメージを受けた！\n${config.rpgHeroName}のパワーがアップ！`,
       stockRandom: `謎のお守りが光り始めた……\n何かが起こったようだ。`,
       guardAtkUp: (num) =>
-        `スキル「攻めの守勢」発動${num > 1 ? `×${num}` : ''}！\n阨ちゃんのパワーがアップ！`,
+        `スキル「攻めの守勢」発動${num > 1 ? `×${num}` : ''}！\n${config.rpgHeroName}のパワーがアップ！`,
     },
     lvBonus: (num) => `修行の成果ボーナス！\nステータス+${num}%！`,
     nurse:
-      '$[x3 :semisand_naname:]\n\n 通りすがりの蝉サンドが現れた！\n 蝉サンドが身体を一部食べさせてくれたおかげでHPが全快した！', //この文を空白にすればナースは来なくなります
-    haisui: '阨ちゃんは決死の覚悟をした！\nパワーが上がり、防御が下がった！',
-    endure: '阨ちゃんは気合で耐えた！',
+      '$[x3 :mkck_nurse:]\n\n通りすがりのナースが現れた！\nナースは受けた傷を治療してくれた！', //この文を空白にすればナースは来なくなります
+    haisui: `${config.rpgHeroName}は決死の覚悟をした！\nパワーが上がり、防御が下がった！`,
+    endure: `${config.rpgHeroName}は気合で耐えた！`,
     fireAtk: (enemyName) =>
-      `阨ちゃんの追い打ち狐火攻撃！\n${enemyName}が次に受けるダメージが上昇した！`,
+      `${config.rpgHeroName}の追い打ち炎攻撃！\n${enemyName}が次に受けるダメージが上昇した！`,
     win: '勝利！おめでとう！',
     lose: ':neofox_x_x:',
-    escape: '阨ちゃんは戦闘から逃げた！',
-    escapeNotBattle: '阨ちゃんは一旦諦めて別の事をするようだ。',
+    escape: `${config.rpgHeroName}は戦闘から逃げた！`,
+    escapeNotBattle: `${config.rpgHeroName}は一旦諦めて別の事をするようだ。`,
     getCoin: (num) =>
-      `${num}個のキレイなどんぐりを拾った！\n「RPG ショップ」で買い物に使えるのじゃ！`,
+      `${num}個の${config.rpgCoinName}を拾った！\n「RPG ショップ」でお買い物してほしいのじゃ！`,
     next: '次回へ続く……',
     nextPlay: (str) => `次回は${str}以降に遊べるのじゃ。`,
     getRerollOrb: (num) =>
@@ -619,8 +635,7 @@ export default {
       `$[x2 :blobharrypotter:]\n\nきみに魔法をかけてあげるよ！\n\n強化魔法で阨ちゃんのスキルの\n効果が${num}倍になった！`,
     giveAmulet: `$[x2 :sexy_paradin:]\n\nこれを貴方に差し上げましょう。\nつい先ほどそこで見つけたものです。\n\n古びた謎のお守りを貰った！`,
     draw: 'あいこになった！\nお互いにダメージなし！',
-    allStageClear:
-      '気が付いたら、ここは最初に旅を始めた場所だった。\nどうやら旅をしすぎて\n世界を1周してしまったようだ。\n\n**ステージ100クリアおめでとう！**\nキレイなどんぐりを1,000枚獲得しました！\n「長き旅の思い出」を入手しました！',
+    allStageClear: `気が付いたら、ここは最初に旅を始めた場所だった。\nどうやら旅をしすぎて\n世界を1周してしまったようだ。\n\n**ステージ100クリアおめでとう！**\n${config.rpgCoinName}を1,000枚獲得しました！\n「長き旅の思い出」を入手しました！`,
     warrior: {
       get: '$[x2 :sexy_paradin_dot:]\n\n「助けに参りました！私も手伝います！」\n\n:sexy_paradin_dot:が仲間になった！',
       atk: (dmg) => `:sexy_paradin_dot:の攻撃！\n${dmg}ポイントのダメージ！`,
@@ -636,16 +651,20 @@ export default {
     fire: '🔥',
     journey: {
       err: `探索中以外の状態では修行モードは指定できないのじゃ。探索中になったらもう一度試してみてほしいのじゃ。`,
-      win: '（次のステージへ進む場合は、次回も修行モードを指定してください）',
+      win: '（次のステージへ進む場合は、次回も修行モードを指定してほしいのじゃ）',
       lose: (day) => (day ? `(ステージが${day}、戻ってしまった…)` : ''),
     },
     trial: {
-      tired: `全力を出して疲れてしまったのじゃ…。Lvが上がったら、もう一度試してみてほしいのじゃ。`,
-      cw: (lv) => `阨ちゃんは自分の力を確認するようだ。(Lv${lv})`,
-      atk: (dmg) => `阨ちゃんは木人に攻撃！\n${dmg}ポイントのダメージ！`,
-      result: (totalDmg) => `合計${totalDmg}ポイントのダメージ！`,
-      random: (down, up) => `(ダメージ幅: ${down} ~ ${up})`,
-      best: (bestScore) => `(これまでのベスト: **${bestScore}**)`,
+      tired: `全力を出して疲れてしまったみたいです。Lvが上がったら、もう一度試してみてください。`,
+      cw: (lv) => `${config.rpgHeroName}は自分の力を確認するようだ。(Lv${lv})`,
+      atk: (dmg) =>
+        `${config.rpgHeroName}は木人に攻撃！\n${dmg}ポイントのダメージ！`,
+      result: (totalDmg: number) =>
+        `合計${totalDmg.toLocaleString()}ポイントのダメージ！`,
+      random: (down: number, up: number) =>
+        `(ダメージ幅: ${down.toLocaleString()} ~ ${up.toLocaleString()})`,
+      best: (bestScore: number) =>
+        `(これまでのベスト: **${bestScore.toLocaleString()}**)`,
     },
     oneMore: {
       tired: (flg) =>
@@ -661,19 +680,21 @@ export default {
       autoBuy: (coin) =>
         `おかわりRPGのプレイ権利を\n自動購入したのじゃ！\n（残りどんぐり個数: ${coin}）`,
     },
-    info: '阨ちゃんの状況判断能力がアップ！\n今後、状況が細かく\n分析出来るようになる事があるのじゃ！',
+    info: `${config.rpgHeroName}の状況判断能力がアップ！\n今後、状況が細かく\n分析出来るようになる事があるのじゃ！`,
     infoPercent: '%',
     postBonusInfo: {
-      post: (num, bonus) => `投稿数 ${num} ステータス${bonus}%`,
+      post: (num: number, bonus) =>
+        `投稿数 ${num.toLocaleString()} ステータス${bonus}%`,
       continuous: {
-        a: (num) => `連続RPGボーナス 投稿数+${num}`,
-        b: (num) => `連続RPGボーナス（弱） 投稿数+${num}`,
-        c: (num) => `毎日RPGボーナス 投稿数+${num}`,
+        a: (num: number) => `連続RPGボーナス 投稿数+${num.toLocaleString()}`,
+        b: (num: number) =>
+          `連続RPGボーナス（弱） 投稿数+${num.toLocaleString()}`,
+        c: (num: number) => `毎日RPGボーナス 投稿数+${num.toLocaleString()}`,
       },
       super: `覚醒ボーナス 投稿数+200`,
     },
     newSkill: (newSkill) =>
-      `新しいスキル\n「${newSkill}」\nを手に入れたのじゃ！`,
+      `新しいスキル\n「${newSkill}」\nを手に入れたのじゃ！\n「RPG スキル」と話しかけて確認してみてほしいのじゃ！`,
     moveToSkill: (oldSkill, newSkill) =>
       `スキル\n「${oldSkill}」が、\n「${newSkill}」\nに変化したのじゃ！`,
     newColor: (unlockColors) =>
@@ -706,7 +727,7 @@ export default {
       notEnoughOrb: `:spinny_neofox:変更珠が足りないのじゃ～:neofox_cry:`,
     },
     help: {
-      title: 'RPG コマンド一覧\n',
+      title: 'RPG コマンド一覧',
       normal1:
         '[ RPG ]\nわらわと戦って一緒に強くなろうぞ！\n0~11時 12~17時 18~23時でそれぞれプレイ出来るのじゃ～',
       normal2:

@@ -20,6 +20,7 @@ import {
   calcSevenFever,
   amuletMinusDurability,
   countDuplicateSkillNames,
+  skillBorders,
 } from './skills';
 import {
   start,
@@ -38,6 +39,7 @@ import {
   getPostX,
   getVal,
   random,
+  preLevelUpProcess,
 } from './utils';
 import { calculateStats } from './battle';
 import Friend from '@/friend';
@@ -703,9 +705,12 @@ export default class extends Module {
       if (id && skill && num) {
         const friend = this.ai.lookupFriend(id);
         if (friend == null) return { reaction: ':neofox_approve:' };
-        friend.doc.perModulesData.rpg.skills[num] = skills.find((x) =>
-          x.name.startsWith(skill),
-        );
+        let skillData = skills.find((x) => x.name.startsWith(skill));
+        if (!skillData) {
+          skillData = skills.find((x) => x.name.includes(skill));
+          if (!skillData) return { reaction: ':neofox_approve:' };
+        }
+        friend.doc.perModulesData.rpg.skills[num] = skillData;
         friend.save();
         return { reaction: 'love' };
       }
@@ -747,16 +752,10 @@ export default class extends Module {
 
       games[games.length - 1].attackers.forEach((x) => {
         const doc = this.ai.lookupFriend(x.user.id)?.doc;
-        const enemyName = ':dog_chair:';
-        if (!doc?.perModulesData?.rpg?.raidScore?.[enemyName]) return;
-        doc.perModulesData.rpg.raidScore[enemyName] = 0;
+        const enemyName = ':aichan:';
+        if (doc?.perModulesData?.rpg?.raidScore?.[enemyName] != 8443) return;
+        doc.perModulesData.rpg.raidScore[enemyName] = 4159;
       });
-      const rpgData = ai.moduleData.findOne({ type: 'rpg' });
-      if (rpgData) {
-        rpgData.raidScore[':dog_chair:'] = 0;
-        rpgData.raidScoreDate[':dog_chair:'] = getDate();
-        ai.moduleData.update(rpgData);
-      }
       return { reaction: 'love' };
     }
     return { reaction: 'hmm' };
@@ -1509,11 +1508,11 @@ export default class extends Module {
       if (Math.random() < 0.6) {
         message += serifs.rpg.skill.heaven + '\n';
         atk = atk * (1 + skillEffects.heavenOrHell);
-        def = def * (1 + skillEffects.heavenOrHell);
+        def = def * (1 + skillEffects.heavenOrHell * 1.5);
       } else {
         message += serifs.rpg.skill.hell + '\n';
         atk = atk / (1 + skillEffects.heavenOrHell);
-        def = def / (1 + skillEffects.heavenOrHell);
+        def = def / (1 + skillEffects.heavenOrHell * 0.75);
       }
     }
 
@@ -1634,6 +1633,16 @@ export default class extends Module {
             types.push('medicine');
             types.push('poison');
           }
+        }
+
+        if ((skillEffects.weaponSelect ?? 0) >= 1) {
+          types = ['weapon'];
+        }
+        if ((skillEffects.armorSelect ?? 0) >= 1) {
+          types = ['armor'];
+        }
+        if ((skillEffects.foodSelect ?? 0) >= 1) {
+          types = ['medicine', 'poison'];
         }
         if (
           (count !== 1 || data.enemy.pLToR) &&
@@ -2172,7 +2181,7 @@ export default class extends Module {
           random(data, startCharge, skillEffects, false) * atkMaxRnd;
         if (aggregateTokensEffects(data).showRandom)
           message += `⚂ ${Math.floor(rng * 100)}%\n`;
-        const dmgBonus =
+        let dmgBonus =
           (1 + (skillEffects.atkDmgUp ?? 0)) *
           dmgUp *
           (skillEffects.thunder
@@ -2190,6 +2199,20 @@ export default class extends Module {
           ) +
             (skillEffects.critUpFixed ?? 0);
         const critDmg = 1 + (skillEffects.critDmgUp ?? 0);
+        if (skillEffects.noCrit) {
+          crit = false;
+          dmgBonus *=
+            1 +
+            Math.min(
+              Math.max(
+                (enemyHpPercent - playerHpPercent) *
+                  (1 + (skillEffects.critUp ?? 0) + critUp),
+                0,
+              ) + (skillEffects.critUpFixed ?? 0),
+              1,
+            ) *
+              (2 * critDmg - 1);
+        }
         /** ダメージ */
         let dmg =
           getAtkDmg(
@@ -2604,91 +2627,7 @@ export default class extends Module {
     data.exp = 0;
 
     /** 追加表示メッセージ */
-    let addMessage = '';
-
-    if (
-      (data.info ?? 0) < 1 &&
-      100 + lv * 3 + (data.winCount ?? 0) * 5 >= 300
-    ) {
-      data.info = 1;
-      addMessage += `\n` + serifs.rpg.info;
-    }
-
-    let oldSkillName = '';
-
-    if (data.skills?.length) {
-      const uniques = new Set();
-      for (const _skill of data.skills as Skill[]) {
-        const skill = skills.find((x) => x.name === _skill.name) ?? _skill;
-
-        if (
-          !data.checkFreeDistributed &&
-          data.skills?.length === 5 &&
-          (data.totalRerollOrb ?? 0) === (data.rerollOrb ?? 0) &&
-          !data.freeDistributed &&
-          countDuplicateSkillNames(data.skills) === 0 &&
-          data.skills.every((x) => x.name !== '分散型')
-        ) {
-          const moveToSkill = skills.find((x) => x.name === '分散型');
-          if (moveToSkill) {
-            oldSkillName = data.skills[4].name;
-            data.skills[4] = moveToSkill;
-            data.freeDistributed = true;
-            addMessage +=
-              `\n` + serifs.rpg.moveToSkill(oldSkillName, moveToSkill.name);
-          }
-        } else {
-          if (!data.checkFreeDistributed) data.checkFreeDistributed = true;
-        }
-
-        if ((skill.unique && uniques.has(skill.unique)) || skill.notLearn) {
-          oldSkillName = skill.name;
-          data.skills = data.skills.filter(
-            (x: Skill) => x.name !== oldSkillName,
-          );
-        } else {
-          if (skill.unique) uniques.add(skill.unique);
-        }
-        if (skill.moveTo) {
-          const moveToSkill = skills.find((x) => x.name === skill.moveTo);
-          if (moveToSkill) {
-            oldSkillName = skill.name;
-            data.skills = data.skills.filter(
-              (x: Skill) => x.name !== oldSkillName,
-            );
-            data.skills.push(moveToSkill);
-            addMessage +=
-              `\n` + serifs.rpg.moveToSkill(oldSkillName, moveToSkill.name);
-          }
-        }
-      }
-    }
-
-    const skillBorders = [20, 50, 100, 170, 255];
-    const skillCounts = skillBorders.filter((x) => data.lv >= x).length;
-
-    if ((data.skills ?? []).length < skillCounts) {
-      if (!data.skills) data.skills = [];
-      let skill;
-      if (
-        (data.skills ?? []).length === 4 &&
-        skillCounts === 5 &&
-        countDuplicateSkillNames(data.skills) === 0 &&
-        data.skills.every((x) => x.name !== '分散型')
-      ) {
-        skill = skills.find((x) => x.name === '分散型');
-        data.freeDistributed = true;
-        data.checkFreeDistributed = true;
-      } else {
-        skill = getSkill(data);
-      }
-      data.skills.push(skill);
-      if (oldSkillName) {
-        addMessage += `\n` + serifs.rpg.moveToSkill(oldSkillName, skill.name);
-      } else {
-        addMessage += `\n` + serifs.rpg.newSkill(skill.name);
-      }
-    }
+    let addMessage = preLevelUpProcess(data);
 
     if (
       !msg.includes(
@@ -2697,7 +2636,7 @@ export default class extends Module {
           : [serifs.rpg.command.onemore],
       )
     )
-      data.coinGetCount += 1;
+      data.coinGetCount += 1 + (Math.random() < 0.5 ? 1 : 0);
     if (data.coinGetCount >= 5) {
       data.coin += 5;
       data.coinGetCount -= 5;

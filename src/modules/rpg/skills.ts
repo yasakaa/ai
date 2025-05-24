@@ -64,6 +64,8 @@ export type SkillEffect = {
   atkUp5?: number;
   /** パワーがn%上昇 （グループ６） */
   atkUp6?: number;
+  /** パワーが4%^n上昇  */
+  atkUpBonus?: number;
   /** 防御がn%上昇 （グループ１） */
   defUp?: number;
   /** 防御がn%上昇 （グループ２） */
@@ -217,6 +219,7 @@ export type SkillEffect = {
   lust?: number;
   gluttony?: number;
   sloth?: number;
+  noCrit?: number;
 };
 
 export type Skill = {
@@ -232,6 +235,7 @@ export type Skill = {
   effect: SkillEffect;
   /** ユニークキー 同じキーを持っているスキルは入手不可 */
   unique?: string;
+  amuletUnique?: string;
   /** 移動先 スキル名を変更した際に */
   moveTo?: string;
   /** スキル変更が出来ない場合 */
@@ -270,8 +274,8 @@ export const skills: Skill[] = [
     name: `${serifs.rpg.status.def}アップ`,
     short: `Ｄ`,
     desc: `常に${serifs.rpg.status.def}が上がります`,
-    info: `${serifs.rpg.status.def}+13%`,
-    effect: { defUp: 0.13 },
+    info: `${serifs.rpg.status.atk}+4% ${serifs.rpg.status.def}+13%`,
+    effect: { atkUpBonus: 1, defUp: 0.13 },
   },
   {
     name: `炎属性妖術`,
@@ -284,8 +288,8 @@ export const skills: Skill[] = [
     name: `氷属性妖術`,
     short: '氷',
     desc: `戦闘時、たまに敵を凍らせます`,
-    info: `戦闘時、9%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+9%\n水曜日に全ての効果量が66%アップ`,
-    effect: { ice: 0.09 },
+    info: `戦闘時、9%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+9%\n水曜日にここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, ice: 0.09 },
   },
   {
     name: `雷属性妖術`,
@@ -312,15 +316,15 @@ export const skills: Skill[] = [
     name: `光属性妖術`,
     short: '光',
     desc: `戦闘時、たまに敵の攻撃力を下げます`,
-    info: `戦闘時、18%でダメージカット50%\nそれ以外の場合、${serifs.rpg.status.def}+9%\n金曜日に全ての効果量が66%アップ`,
-    effect: { light: 0.18 },
+    info: `戦闘時、18%でダメージカット50%\nそれ以外の場合、${serifs.rpg.status.def}+9%\n金曜日にここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, light: 0.18 },
   },
   {
     name: `闇属性妖術`,
     short: '闇',
     desc: `戦闘時、たまに敵の周辺に高重力領域を発生させます`,
-    info: `戦闘時、9%で敵の現在HPの半分のダメージ（レイドでは150ダメージ）を与える\n行動回数が2回以上の敵に18%で行動回数を1にする\nそれ以外の場合、${serifs.rpg.status.def}+6.3%\n月曜日に全ての効果量が66%アップ`,
-    effect: { dark: 0.09 },
+    info: `戦闘時、9%で敵の現在HPの半分のダメージ（レイドでは150ダメージ）を与える\n行動回数が2回以上の敵に18%で行動回数を1にする\nそれ以外の場合、${serifs.rpg.status.def}+6.3%\n月曜日にここまでに記載された効果の効果量が66%アップ ${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, dark: 0.09 },
   },
   {
     name: `炎属性妖術＋`,
@@ -335,8 +339,8 @@ export const skills: Skill[] = [
     name: `氷属性妖術＋`,
     short: '**氷**',
     desc: `戦闘時、たまに敵を凍らせます`,
-    info: `戦闘時、15%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+15%\n水曜日に全ての効果量が66%アップ`,
-    effect: { ice: 0.15 },
+    info: `戦闘時、15%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+15%\n水曜日ここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, ice: 0.15 },
     notLearn: true,
     skillOnly: true,
   },
@@ -371,8 +375,8 @@ export const skills: Skill[] = [
     name: `光属性妖術＋`,
     short: '**光**',
     desc: `戦闘時、たまに敵の攻撃力を下げます`,
-    info: `戦闘時、30%でダメージカット50%\nそれ以外の場合、${serifs.rpg.status.def}+15%\n金曜日に全ての効果量が66%アップ`,
-    effect: { light: 0.3 },
+    info: `戦闘時、30%でダメージカット50%\nそれ以外の場合、${serifs.rpg.status.def}+15%\n金曜日にここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, light: 0.3 },
     notLearn: true,
     skillOnly: true,
   },
@@ -381,7 +385,7 @@ export const skills: Skill[] = [
     short: '**闇**',
     desc: `戦闘時、たまに敵の周辺に高重力領域を発生させます`,
     info: `戦闘時、15%で敵の現在HPの半分のダメージ（レイドでは150ダメージ）を与える\n行動回数が2回以上の敵に30%で行動回数を1にする\nそれ以外の場合、${serifs.rpg.status.def}+10.5%\n月曜日に全ての効果量が66%アップ`,
-    effect: { dark: 0.15 },
+    effect: { atkUpBonus: 1, dark: 0.15 },
     notLearn: true,
     skillOnly: true,
   },
@@ -403,30 +407,30 @@ export const skills: Skill[] = [
     name: `疲れにくい`,
     short: '疲',
     desc: `疲れでダメージを受ける際にそのダメージを軽減します`,
-    info: `ダメージメッセージに疲が入っている場合、${serifs.rpg.status.def}+27%`,
-    effect: { notBattleBonusDef: 0.27 },
+    info: `ダメージメッセージに疲が入っている場合、${serifs.rpg.status.def}+27% ${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, notBattleBonusDef: 0.27 },
   },
   {
     name: `油断せずいこう`,
     short: '断',
     desc: `ターン1に受けるダメージを大きく軽減します`,
-    info: `ターン1にてダメージカット40%を得る\n100%以上になる場合、残りはターン2に持ち越す`,
-    effect: { firstTurnResist: 0.4 },
+    info: `ターン1にてダメージカット40%を得る\n100%以上になる場合、残りはターン2に持ち越す\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, firstTurnResist: 0.4 },
     skillOnly: true,
   },
   {
     name: `粘り強い`,
     short: '粘',
     desc: `体力が減るほど受けるダメージを軽減します`,
-    info: `ダメージカット25%×(減少HP割合)を得る 最大90%`,
-    effect: { tenacious: 0.25 },
+    info: `ダメージカット25%×(減少HP割合)を得る 最大90% ${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, tenacious: 0.25 },
   },
   {
     name: `高速RPG`,
     short: '速',
     desc: `1回のRPGでお互いに2回行動します`,
-    info: `1回のコマンドで2ターン進行する レイド時は、${serifs.rpg.status.atk}+10%`,
-    effect: { plusActionX: 1 },
+    info: `1回のコマンドで2ターン進行する ${serifs.rpg.status.atk}+1% レイド時は、さらに${serifs.rpg.status.atk}+10%`,
+    effect: { atkUpBonus: 0.25, plusActionX: 1 },
   },
   {
     name: `1時間先取りRPG`,
@@ -455,8 +459,8 @@ export const skills: Skill[] = [
     name: `慎重`,
     short: '慎',
     desc: `与えるダメージが下がりますが、受けるダメージも下がります`,
-    info: `${serifs.rpg.dmg.give}-8% ${serifs.rpg.dmg.take}-20%`,
-    effect: { atkDmgUp: -0.08, defDmgUp: -0.2 },
+    info: `${serifs.rpg.dmg.give}-4% ${serifs.rpg.dmg.take}-20%`,
+    effect: { atkDmgUp: -0.04, defDmgUp: -0.2 },
   },
   {
     name: `連続・毎日ボーナス強化`,
@@ -469,25 +473,25 @@ export const skills: Skill[] = [
     name: `負けそうなら逃げる`,
     short: '逃',
     desc: `逃げると負けた事になりません 連続で発動しにくい`,
-    info: `スキルの数まで100%逃走 以降失敗まで発動度に確率半減し続ける\nレイド時は、1ターン距離を取って回復する`,
-    effect: { escape: 1 },
+    info: `スキルの数まで100%逃走 以降失敗まで発動度に確率半減し続ける\nレイド時は、1ターン距離を取って回復する\nさらに、${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, escape: 1 },
   },
   {
     name: `気合で頑張る`,
     short: '気',
     desc: `パワー・防御が少し上がり、気合耐えの確率が上がります`,
-    info: `ステータス+5% 気合耐え確率+50%`,
-    effect: { atkUp3: 0.05, defUp3: 0.05, endureUp: 0.5 },
+    info: `ステータス+6% 気合耐え確率+50%`,
+    effect: { atkUp3: 0.06, defUp3: 0.06, endureUp: 0.5 },
   },
   {
     name: `すぐ決死の覚悟をする`,
     short: '決',
     desc: `決死の覚悟の発動条件が緩くなり、効果量が上がります さらに決死の覚悟発動時、追加で与ダメージとクリティカル率が上がります`,
-    info: `与ダメージ+8% 覚悟発動条件効果量+50%\n覚悟発動時与ダメージ+4% クリティカル率1.2倍`,
+    info: `与ダメージ+8% 覚悟発動条件効果量+50%\n覚悟発動時与ダメージ+5% クリティカル率1.2倍`,
     effect: {
       atkDmgUp2: 0.08,
       haisuiUp: 0.5,
-      haisuiAtkUp: 0.04,
+      haisuiAtkUp: 0.05,
       haisuiCritUp: 0.2,
     },
   },
@@ -519,13 +523,14 @@ export const skills: Skill[] = [
     info: `乱数幅 20~180 -> 60~160 (%) 期待値 110% 乱数系と重複しない`,
     effect: { atkRndMin: 0.4, atkRndMax: -0.2 },
     unique: 'rnd',
+    moveTo: `${serifs.rpg.dmg.give}${serifs.rpg.status.rndM}5`,
   },
   {
     name: `${serifs.rpg.dmg.give}${serifs.rpg.status.rndM}5`,
     short: '５',
-    desc: `乱数幅が20~180 -> 90~130 (%) になります`,
-    info: `乱数幅 20~180 -> 90~130 (%) 期待値 110% 乱数系と重複しない`,
-    effect: { atkRndMin: 0.7, atkRndMax: -0.5 },
+    desc: `クリティカルが発生しなくなりますが、高いダメージがとても出やすくなります`,
+    info: `乱数幅 20~180 -> 90~135 (%) 期待値 112% クリティカルの期待値分、ダメージ上昇 乱数系と重複しない`,
+    effect: { atkRndMin: 0.7, atkRndMax: -1.15, noCrit: 1 },
     unique: 'rnd',
   },
   {
@@ -540,16 +545,16 @@ export const skills: Skill[] = [
     name: `${serifs.rpg.dmg.take}${serifs.rpg.status.rndM}`,
     short: '安',
     desc: `敵から受ける最大ダメージを減少させます`,
-    info: `敵の乱数幅 20~180 -> 20~160 (%) 乱数系と重複しない`,
-    effect: { defRndMin: 0, defRndMax: -0.2 },
+    info: `敵の乱数幅 20~180 -> 20~160 (%) ${serifs.rpg.status.atk}+4% 乱数系と重複しない`,
+    effect: { atkUpBonus: 1, defRndMin: 0, defRndMax: -0.2 },
     unique: 'rnd',
   },
   {
     name: `${serifs.rpg.dmg.take}${serifs.rpg.status.rndP}`,
     short: '不',
     desc: `敵から受ける最小ダメージを減少させます`,
-    info: `敵の乱数幅 20~180 -> 0~180 (%) 乱数系と重複しない`,
-    effect: { defRndMin: -0.2, defRndMax: 0 },
+    info: `敵の乱数幅 20~180 -> 0~180 (%) ${serifs.rpg.status.atk}+4% 乱数系と重複しない`,
+    effect: { atkUpBonus: 1, defRndMin: -0.2, defRndMax: 0 },
     unique: 'rnd',
   },
   {
@@ -591,25 +596,25 @@ export const skills: Skill[] = [
   {
     name: `武器が大好き`,
     short: '武',
-    desc: `武器を装備しやすくなり、武器の効果量が上がります`,
-    info: `武器装備率3倍 武器効果量+70% 種類大好き系と重複しない`,
+    desc: `武器のみを装備するようになり、武器の効果量が上がります`,
+    info: `防具・食べ物を使用しない 武器効果量+70% 種類大好き系と重複しない`,
     effect: { weaponSelect: 2, weaponBoost: 0.7 },
     unique: 'itemSelect',
   },
   {
     name: `防具が大好き`,
     short: '防',
-    desc: `防具を装備しやすくなり、防具の効果量が上がります`,
-    info: `防具装備率3倍 防具効果量+70% 種類大好き系と重複しない`,
-    effect: { armorSelect: 2, armorBoost: 0.7 },
+    desc: `防具のみを装備するようになり、防具の効果量が上がります`,
+    info: `武器・食べ物を使用しない 防具効果量+70% ${serifs.rpg.status.atk}+4% 種類大好き系と重複しない`,
+    effect: { atkUpBonus: 1, armorSelect: 2, armorBoost: 0.7 },
     unique: 'itemSelect',
   },
   {
     name: `食いしんぼう`,
     short: '食',
-    desc: `食べ物を食べやすくなり、食べ物の効果量が上がります`,
-    info: `食べ物使用率3倍 食べ物効果量+70% 毒食べ物ダメージ-60% 種類大好き系と重複しない`,
-    effect: { foodSelect: 2, foodBoost: 0.7, poisonResist: 0.6 },
+    desc: `食べ物のみを装備するようになり、食べ物の効果量が上がります`,
+    info: `武器・防具を使用しない 食べ物効果量+70% 毒食べ物ダメージ-60% ${serifs.rpg.status.atk}+4% 種類大好き系と重複しない`,
+    effect: { atkUpBonus: 1, foodSelect: 2, foodBoost: 0.7, poisonResist: 0.6 },
     unique: 'itemSelect',
   },
   {
@@ -631,8 +636,8 @@ export const skills: Skill[] = [
     name: `お腹が空いてから食べる`,
     short: '空',
     desc: `体力が減ったら食べ物を食べやすくなり、食べ物の効果量が少し上がります`,
-    info: `体力が減少すれば食べ物を食べるようになり、毒食べ物の確率が下がる 食べ物効果量+20% 毒食べ物ダメージ-20%`,
-    effect: { lowHpFood: 1, foodBoost: 0.2, poisonResist: 0.2 },
+    info: `体力が減少すれば食べ物を食べるようになり、毒食べ物の確率が下がる 食べ物効果量+20% 毒食べ物ダメージ-20% ${serifs.rpg.status.atk}+4% `,
+    effect: { atkUpBonus: 1, lowHpFood: 1, foodBoost: 0.2, poisonResist: 0.2 },
     unique: 'lowHpFood',
   },
   {
@@ -643,6 +648,7 @@ export const skills: Skill[] = [
     effect: { statusBonus: 2 },
     unique: 'status',
     cantReroll: true,
+    moveTo: `テキパキこなす`,
   },
   {
     name: `連続攻撃完遂率上昇`,
@@ -662,8 +668,8 @@ export const skills: Skill[] = [
     name: `敵のクリティカル性能減少`,
     short: '守',
     desc: `相手のクリティカル率とクリティカルダメージが減少します`,
-    info: `敵のクリティカル率-40% 敵のクリティカルダメージ-40% レイド時は、追加で${serifs.rpg.status.def}+10%`,
-    effect: { enemyCritDown: 0.4, enemyCritDmgDown: 0.4 },
+    info: `敵のクリティカル率-40% 敵のクリティカルダメージ-40% ${serifs.rpg.status.atk}+4% レイド時は、追加で${serifs.rpg.status.def}+10%`,
+    effect: { atkUpBonus: 1, enemyCritDown: 0.4, enemyCritDmgDown: 0.4 },
   },
   {
     name: `負けた時、しっかり反省`,
@@ -686,8 +692,8 @@ export const skills: Skill[] = [
     name: `不運チャージ`,
     short: 'Ｃ',
     desc: `不運だった場合、次回幸運になりやすくなります`,
-    info: `ステータス+6% 低乱数を引いた時、次回以降に高乱数を引きやすくなる`,
-    effect: { atkUp4: 0.06, defUp4: 0.06, charge: 1 },
+    info: `ステータス+7% 低乱数を引いた時、次回以降に高乱数を引きやすくなる`,
+    effect: { atkUp4: 0.07, defUp4: 0.07, charge: 1 },
   },
   {
     name: `お守り整備`,
@@ -709,7 +715,7 @@ export const skills: Skill[] = [
     name: `天国か地獄か`,
     short: '天',
     desc: `戦闘開始時に強くなるか弱くなるかどちらかが起こります`,
-    info: `60%でステータス+20% 40%でステータス-20%`,
+    info: `60%で${serifs.rpg.status.atk}+20%・${serifs.rpg.status.def}+30% 40%で${serifs.rpg.status.atk}-20%・${serifs.rpg.status.def}-15%`,
     effect: { heavenOrHell: 0.2 },
   },
   {
@@ -740,8 +746,8 @@ export const skills: Skill[] = [
     name: `攻めの守勢`,
     short: '勢',
     desc: `通常よりもダメージを防げば防ぐ程、パワーが上がります（ただし７フィーバー！を除きます）`,
-    info: `ダメージ軽減300毎に防御の12.5~40%分のパワーを得ます（７フィーバー！を除く）\nこの効果は最大4回まで発動し、発動した回数が多いほど効果が上がります\nさらにレイド時は発動した回数分、全力の一撃のダメージが上がります このスキルは重複しません`,
-    effect: { guardAtkUp: 0.125 },
+    info: `ダメージ軽減300毎に防御の12.5~40%分のパワーを得ます（７フィーバー！を除く）\nこの効果は最大4回まで発動し、発動した回数が多いほど効果が上がります\nさらにレイド時は発動した回数分、全力の一撃のダメージが上がります\n${serifs.rpg.status.atk}+4% このスキルは重複しません`,
+    effect: { atkUpBonus: 1, guardAtkUp: 0.125 },
     unique: 'counter',
   },
   {
@@ -755,18 +761,20 @@ export const skills: Skill[] = [
   {
     name: `傲慢の力`,
     short: '**傲**',
-    desc: `敵が弱いほどパワーが大きく上昇します`,
-    info: '最大体力の10%以下のダメージを受ける度に、その戦いの間常にパワー+15%\nただし、最大体力の30%以上のダメージを受けた場合、そのダメージは2倍になる\nさらに連勝補正の減少を半減させ、たまに無効化する',
+    desc: `敵が弱いほど与ダメージが大きく上昇します`,
+    info: '最大体力の10%以下のダメージを受ける度に、その戦いの間常に与ダメージ+15%\nただし、最大体力の30%以上のダメージを受けた場合、そのダメージは2倍になる\nさらに連勝補正の減少を半減させ、たまに無効化する',
     effect: { pride: 0.15 },
     notLearn: true,
+    amuletUnique: 'sin',
   },
   {
     name: `強欲の力`,
     short: '**欲**',
-    desc: `大好きな種類の道具を毎ターン必ず持てますが、悪い道具も出やすくなります`,
-    info: 'アイテム装備率MAX 大好き系のスキルの選択率MAX 道具効果がランダムで最大-50%',
+    desc: `前に装備した武器・防具を次にその能力を上回るものが手に入るまで装備するようになりますが、使いまわした装備は徐々に力を失います……`,
+    info: '',
     effect: { greed: 0.5 },
     notLearn: true,
+    amuletUnique: 'sin',
   },
   {
     name: `憤怒の力`,
@@ -775,24 +783,45 @@ export const skills: Skill[] = [
     info: '体力半減でスタート クリティカルダメージ+40%',
     effect: { wrath: 0.4 },
     notLearn: true,
+    amuletUnique: 'sin',
   },
   {
     name: `暴食の力`,
     short: '**暴**',
-    desc: `何かを食べた際にパワーが上がります さらに食べる程効果が上がります 食べてはいけない物を食べた場合にさらに効果が上がります`,
-    info: '何かを食べる度、その戦いの間常にパワー+10% 毒を食べた場合パワー+20%',
+    desc: `何かを食べる度に与ダメージが上がります さらに食べる程効果が上がります 食べてはいけない物を食べた場合にさらに効果が上がります`,
+    info: '何かを食べる度、その戦いの間常に与ダメージ+10% 毒を食べた場合与ダメージ+20%',
     effect: { gluttony: 0.2 },
     notLearn: true,
+    amuletUnique: 'sin',
   },
   {
     name: `怠惰の力`,
     short: '**怠**',
     desc: `時々怠けて行動をしなくなりますが、怠けた後は強くなります`,
-    info: '30%で怠ける 怠ける度に、その戦いの間常にパワー+50%',
+    info: '30%で怠ける 怠ける度に、その戦いの間常に与ダメージ+50%',
     effect: { sloth: 0.5 },
     notLearn: true,
+    amuletUnique: 'sin',
+  },
+  {
+    name: `嫉妬の力`,
+    short: '**嫉**',
+    desc: `レイドで与えたダメージが低い間、ダメージを大きくカットします`,
+    info: 'レイドでのダメージ評価が低い間、被ダメージを最大70%カットします\n評価が高くなった場合、被ダメージが★1につき+10%',
+    effect: { envy: 1 },
+    notLearn: true,
+    amuletUnique: 'sin',
+  },
+  {
+    name: `水属性妖術`,
+    short: '水',
+    desc: `戦闘時、たまに敵を凍らせます`,
+    info: `戦闘時、9%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+9%\n水曜日にここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
+    effect: { atkUpBonus: 1, ice: 0.09 },
   },
 ];
+
+export const skillBorders = [20, 50, 100, 170, 255];
 
 const ultimateEffect: SkillEffect = {
   atkUp: 0.01,
@@ -800,6 +829,7 @@ const ultimateEffect: SkillEffect = {
   atkUp3: 0.0036,
   atkUp4: 0.0045,
   atkUp6: 0.0045,
+  atkUpBonus: 1.2,
   defUp: 0.01,
   defUp2: 0.0063,
   defUp3: 0.0036,
@@ -818,7 +848,7 @@ const ultimateEffect: SkillEffect = {
   firstTurnResist: 0.027,
   tenacious: 0.023,
   plusActionX: 1,
-  atkDmgUp: 0.011,
+  atkDmgUp: 0.015,
   defDmgUp: -0.009,
   atkDmgUp2: 0.007,
   continuousBonusUp: 0.045,
@@ -1236,6 +1266,12 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
               adjustedEffect[key] = effect[key];
             }
           }
+          adjustedEffect.amuletPower =
+            (adjustedEffect.amuletPower ?? 0) +
+            (amulet.skillName && Array.isArray(amulet.skillName)
+              ? amulet.skillName.length
+              : 1) *
+              multiplier;
           return { effect: adjustedEffect };
         };
         console.log(
@@ -1272,7 +1308,8 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
     (1 + (aggregatedEffect.atkUp3 ?? 0)) *
     (1 + (aggregatedEffect.atkUp4 ?? 0)) *
     (1 + (aggregatedEffect.atkUp5 ?? 0)) *
-    (1 + (aggregatedEffect.atkUp6 ?? 0));
+    (1 + (aggregatedEffect.atkUp6 ?? 0)) *
+    1.04 ** (aggregatedEffect.atkUpBonus ?? 0);
   aggregatedEffect.defUp =
     (1 + (aggregatedEffect.defUp ?? 0)) *
     (1 + (aggregatedEffect.defUp2 ?? 0)) *
@@ -1456,6 +1493,12 @@ export function aggregateSkillsEffectsSkillX(
               adjustedEffect[key] = effect[key];
             }
           }
+          adjustedEffect.amuletPower =
+            (adjustedEffect.amuletPower ?? 0) +
+            (amulet.skillName && Array.isArray(amulet.skillName)
+              ? amulet.skillName.length
+              : 1) *
+              multiplier;
           return { effect: adjustedEffect };
         };
         console.log(
@@ -1473,7 +1516,7 @@ export function aggregateSkillsEffectsSkillX(
       ? (skills.find((x) => x.name === _skill.name) ?? _skill)
       : _skill;
     const __skill = deepClone(skill);
-    if (__skill.unique) {
+    if (__skill.unique || __skill.amuletUnique) {
       uniqueX = uniqueX * (1 + 0.06 * (skillX - 1));
     } else {
       for (const eff in __skill.effect) {
@@ -1503,6 +1546,7 @@ export function aggregateSkillsEffectsSkillX(
     (1 + (aggregatedEffect.atkUp4 ?? 0)) *
     (1 + (aggregatedEffect.atkUp5 ?? 0)) *
     (1 + (aggregatedEffect.atkUp6 ?? 0)) *
+    1.04 ** (aggregatedEffect.atkUpBonus ?? 0) *
     uniqueX;
   aggregatedEffect.defUp =
     (1 + (aggregatedEffect.defUp ?? 0)) *
@@ -1922,6 +1966,10 @@ export function getTotalEffectString(data: any, skillX = 1): string {
     def *= 1 + (skillEffects.enemyBuff ?? 0) / 20;
   }
 
+  if (skillEffects.wrath) {
+    resultS.push('開始時体力半減');
+  }
+
   if (skillEffects.berserk) {
     resultS.push(
       '毎ターン体力減少: ' + showNum(skillEffects.berserk * 100) + '%',
@@ -2211,7 +2259,10 @@ export function getTotalEffectString(data: any, skillX = 1): string {
   if (skillEffects.critDmgUp) {
     result.push(
       'クリティカルダメージ: +' +
-        showNum((skillEffects.critDmgUp ?? 0) * 100) +
+        showNum(
+          ((skillEffects.critDmgUp ?? 0) + (skillEffects.wrath ? 0.4 : 0)) *
+            100,
+        ) +
         '%',
     );
   }
@@ -2260,46 +2311,16 @@ export function getTotalEffectString(data: any, skillX = 1): string {
     );
   }
   if (skillEffects.weaponSelect) {
-    result.push(
-      '武器選択率: +' +
-        showNum(
-          ((1 +
-            (skillEffects.weaponSelect ?? 0) / 4 +
-            (skillEffects.weaponSelect ?? 0)) /
-            (1 / 4) -
-            1) *
-            100,
-        ) +
-        '%',
-    );
+    result.push('武器のみを使用');
+    //result.push("武器選択率: +" + showNum(((((1 + (skillEffects.weaponSelect ?? 0)) / (4 + (skillEffects.weaponSelect ?? 0))) / (1/4)) - 1) * 100) + "%");
   }
   if (skillEffects.armorSelect) {
-    result.push(
-      '防具選択率: +' +
-        showNum(
-          ((1 +
-            (skillEffects.armorSelect ?? 0) / 4 +
-            (skillEffects.armorSelect ?? 0)) /
-            (1 / 4) -
-            1) *
-            100,
-        ) +
-        '%',
-    );
+    result.push('防具のみを使用');
+    //result.push("防具選択率: +" + showNum(((((1 + (skillEffects.armorSelect ?? 0)) / (4 + (skillEffects.armorSelect ?? 0))) / (1/4)) - 1) * 100) + "%");
   }
   if (skillEffects.foodSelect) {
-    result.push(
-      '食べ物選択率: +' +
-        showNum(
-          ((1 +
-            (skillEffects.foodSelect ?? 0) / 4 +
-            (skillEffects.foodSelect ?? 0)) /
-            (1 / 4) -
-            1) *
-            100,
-        ) +
-        '%',
-    );
+    result.push('食べ物のみを使用');
+    //result.push("食べ物選択率: +" + showNum(((((1 + (skillEffects.foodSelect ?? 0)) / (4 + (skillEffects.foodSelect ?? 0))) / (1/4)) - 1) * 100) + "%");
   }
   if (skillEffects.poisonAvoid) {
     result.push(
@@ -2435,8 +2456,13 @@ export function getTotalEffectString(data: any, skillX = 1): string {
       0.25 *
         (1 + (skillEffects.critUp ?? 0)) *
         (1 + (skillEffects.haisuiCritUp ?? 0)) *
-        (1 + (skillEffects.critDmgUp ?? 0) * 2) -
-      0.25 * (1 + (skillEffects.critDmgUp ?? 0) * 2)) *
+        (1 +
+          ((skillEffects.critDmgUp ?? 0) + (skillEffects.wrath ? 0.4 : 0)) *
+            2) -
+      0.25 *
+        (1 +
+          ((skillEffects.critDmgUp ?? 0) + (skillEffects.wrath ? 0.4 : 0)) *
+            2)) *
     (1 + (skillEffects.finalAttackUp ?? 0) / 7) *
     (1 +
       Math.min(
