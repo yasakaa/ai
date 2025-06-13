@@ -18,6 +18,37 @@ export default class extends Module {
 
   @autobind
   private async mentionHook(msg: Message) {
+    const text = msg.extractedText.trim();
+
+    // ソードワールド能力値判定コマンド: gr
+    if (msg.extractedText.trim() === 'gr') {
+      const roll1 = Math.floor(Math.random() * 6) + 1;
+      const roll2 = Math.floor(Math.random() * 6) + 1;
+
+      const abilityMap = {
+        1: '器用度',
+        2: '敏捷度',
+        3: '筋力',
+        4: '生命力',
+        5: '知力',
+        6: '精神力',
+      } as const;
+
+      const ability1 = abilityMap[roll1 as keyof typeof abilityMap];
+      const ability2 = abilityMap[roll2 as keyof typeof abilityMap];
+
+      const result =
+        roll1 === roll2
+          ? `gr [${roll1},${roll2}]->(${ability1})`
+          : `gr [${roll1},${roll2}]->(${ability1} or ${ability2})`;
+
+      msg.reply(result, { visibility: 'public' });
+
+      return {
+        reaction: 'dice',
+      };
+    }
+
     if (msg.extractedText == null) return false;
 
     if (
