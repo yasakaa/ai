@@ -3,3 +3,6 @@ built
 node_modules
 memory.json
 font.ttf
+.nvmrc
+.npmrc
+.prettierc

@@ -21,7 +21,7 @@ export default class extends Module {
     const text = msg.extractedText.trim();
 
     // textが「gr」で始まり、その後に空白文字が続くか、文字列がそこで終わる場合にマッチ
-    if (text.match(/^gr(\s|$)/))
+    if (text.match(/^gr(\s|$)/)) {
       const roll1 = Math.floor(Math.random() * 6) + 1;
       const roll2 = Math.floor(Math.random() * 6) + 1;
 
