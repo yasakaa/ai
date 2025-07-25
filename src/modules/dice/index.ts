@@ -20,8 +20,8 @@ export default class extends Module {
   private async mentionHook(msg: Message) {
     const text = msg.extractedText.trim();
 
-    // ソードワールド能力値判定コマンド: gr
-    if (msg.extractedText.trim() === 'gr') {
+    // textが「gr」で始まり、その後に空白文字が続くか、文字列がそこで終わる場合にマッチ
+    if (text.match(/^gr(\s|$)/))
       const roll1 = Math.floor(Math.random() * 6) + 1;
       const roll2 = Math.floor(Math.random() * 6) + 1;
 
