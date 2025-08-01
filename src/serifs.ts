@@ -718,6 +718,8 @@ export default {
         `:spinny_neofox:わらわのショップへようこそなのじゃ～\n欲しい商品の数値またはアルファベットを返信してほしいのじゃ\n（所持どんぐり数: ${coin.toLocaleString()}）`,
       welcome2: (coin: number, orb: number) =>
         `$[spin.y,speed=5s :spinny_neofox:]:welcome_to_underground:\n欲しい商品の数値またはアルファベットをこっそり返信してほしいのじゃ…\n（所持どんぐり数: ${coin.toLocaleString()}）\n（所持変更珠数: ${orb.toLocaleString()}）`,
+      welcome3: (coin: number) =>
+        `:spinny_neofox::カスタムショップへようこそなのじゃ！\n欲しいパーツの数値を返信して\n（所持${config.rpgCoinShortName}数: ${coin.toLocaleString()}）\n`,
       buyItem: (itemName, coin) =>
         `:spinny_neofox:まいどありなのじゃ！\n${itemName}を購入したのじゃ！\n（残りどんぐり個数: ${coin}）`,
       buyItemOrb: (itemName, orb: number) =>
@@ -751,6 +753,7 @@ export default {
       shop: (coin) =>
         `[ RPG ショップ ]\nどんぐりを使って、ショップでお買い物が楽しめるのじゃ！\n1つしか持てないし壊れるけど効果が強いお守りや、捨てるまで効果が発動するお札など色々買えちゃうのじゃ！\n1日1回並んでいる商品が変わるのじゃ！\n（所持どんぐり: ${coin}個）`,
       shop2: `[ RPG 裏ショップ ]\n購入した裏ショップ入場の札を使って、裏ショップに入れるのじゃ！\nどんぐりとスキル変更珠を使って、珍しいアイテムを買えるらしいが内緒じゃぞ！\n1日1回並んでいる商品が変わるらしいのじゃ！`,
+      shopCustom: `[ RPG カスタムショップ ]\nお守りパーツを組み合わせて自分好みのお守りを作成でき！`,
       item: '[ RPG アイテム ]\nわらわの今持っている全てのアイテムの一覧がここで確認できるようじゃ！',
       link: `[ リンク ]\nそなたがサブアカウントを持っているなら、アカウントをリンクさせておくとRPGで有利になるのじゃ！`,
       record: `[ RPG 殿堂 ]\nRPGモードで打ち立てた記録とその全体の順位をここで確認することができるのじゃ！`,
@@ -775,6 +778,7 @@ export default {
       skill: ['スキル', 'skill', 'お守り', 'amulet'],
       shop: ['ショップ', 'shop', 'お店'],
       shop2: ['裏', 'ura', '2', 'another'],
+      shopCustom: ['カスタム', 'custom'],
       help: ['h', 'ヘルプ', '?'],
       Record: [
         '殿堂',

@@ -8,6 +8,7 @@ import {
   ShopItem,
   shopItems,
   mergeSkillAmulet,
+  getRandomSkills,
 } from './shop';
 import { deepClone, getColor } from './utils';
 import { colors, enhanceCount } from './colors';
@@ -92,6 +93,7 @@ export type SkillEffect = {
   dark?: number;
   /** 毒：1ターンごとに敵のステータスn%低下 */
   weak?: number;
+  water?: number;
   /** 非戦闘時にパワーn%上昇 */
   notBattleBonusAtk?: number;
   /** 非戦闘時に防御n%上昇 */
@@ -244,6 +246,8 @@ export type Skill = {
   notLearn?: boolean;
   /** お守りとして出ない場合 */
   skillOnly?: boolean;
+  /** ショップに並ばない場合 */
+  notShop?: boolean;
 };
 
 export const skills: Skill[] = [
@@ -762,7 +766,7 @@ export const skills: Skill[] = [
     name: `傲慢の力`,
     short: '**傲**',
     desc: `敵が弱いほど与ダメージが大きく上昇します`,
-    info: '最大体力の10%以下のダメージを受ける度に、その戦いの間常に与ダメージ+15%\nただし、最大体力の30%以上のダメージを受けた場合、そのダメージは2倍になる\nさらに連勝補正の減少を半減させ、たまに無効化する',
+    info: '最大体力の10%以下のダメージを受ける度に、その戦いの間常に与ダメージ+15%\nただし、最大体力の30%以上のダメージを受けた場合、そのダメージは2倍になる',
     effect: { pride: 0.15 },
     notLearn: true,
     amuletUnique: 'sin',
@@ -813,11 +817,38 @@ export const skills: Skill[] = [
     amuletUnique: 'sin',
   },
   {
+    name: `バーサク`,
+    short: 'バ',
+    desc: `レイド時、毎ターンダメージを受けますが、パワーがアップします`,
+    info: 'レイド時、毎ターンHP15%減少 パワー+24%',
+    effect: { berserk: 0.15 },
+    notLearn: true,
+    notShop: true,
+  },
+  {
+    name: `超全力の一撃`,
+    short: '撃',
+    desc: `レイド時、ターン7で発生する全力の一撃を強化します`,
+    info: 'レイド時、全力の一撃のダメージ1.3倍',
+    effect: { finalAttackUp: 0.3 },
+    notLearn: true,
+    notShop: true,
+  },
+  {
+    name: `スロースタート`,
+    short: 'ス',
+    desc: `レイド時、最初は弱くなりますが、ターンが進む度にどんどん強くなります`,
+    info: 'レイド時、最初は弱くなりますが、ターンが進む度にどんどん強くなります',
+    effect: { slowStart: 1 },
+    notLearn: true,
+    notShop: true,
+  },
+  {
     name: `水属性妖術`,
     short: '水',
-    desc: `戦闘時、たまに敵を凍らせます`,
-    info: `戦闘時、9%で相手のターンをスキップ\n非戦闘時、${serifs.rpg.status.def}+9%\n水曜日にここまでに記載された効果の効果量が66%アップ\n${serifs.rpg.status.atk}+4%`,
-    effect: { atkUpBonus: 1, ice: 0.09 },
+    desc: `炎属性の敵に対して、非常に有効です さらに、氷属性と雷属性の力を高めます`,
+    info: `炎属性の敵に対し与ダメージ+18%かつ火炎ダメージのダメージカット+54%\n水曜日にここまでに記載された効果の効果量が66%アップ\n氷属性妖術と雷属性妖術の効果が+25%`,
+    effect: { water: 0.18 },
   },
 ];
 
@@ -981,6 +1012,27 @@ export const getRerollSkill = (data, oldSkillName = '') => {
   return filteredSkills[0]; // ここに来るのはおかしいよ
 };
 
+export const canLearnSkillNow = (data, skill: Skill) => {
+  const playerSkills = data.skills.map(
+    (x) => skills.find((y) => x.name === y.name) ?? x,
+  );
+  if (skill.notLearn || skill.moveTo || skill.cantReroll) return false;
+  if (
+    playerSkills
+      .filter((y) => y.unique)
+      .map((y) => y.unique)
+      .includes(skill.unique)
+  )
+    return false;
+  if (
+    skill.name === '分散型' &&
+    (countDuplicateSkillNames(data.skills) !== 0 ||
+      data.skills.some((x) => x.name === '分散型'))
+  )
+    return false;
+  return true;
+};
+
 const skillInfo = (
   skills: Skill[] | undefined,
   desc: string,
@@ -995,7 +1047,7 @@ const skillInfo = (
 };
 
 /** スキルに関しての情報を返す */
-export const skillReply = (module: Module, ai: 藍, msg: Message) => {
+export const skillReply = async (module: Module, ai: 藍, msg: Message) => {
   // データを読み込み
   const data = msg.friend.getPerModulesData(module);
   if (!data) return false;
@@ -1087,20 +1139,51 @@ export const skillReply = (module: Module, ai: 藍, msg: Message) => {
       if (msg.includes([String(i + 1)])) {
         if (!playerSkills[i].cantReroll) {
           const oldSkillName = playerSkills[i].name;
-          if (data.nextSkill && skills.find((x) => x.name === data.nextSkill)) {
-            const skill = skills.find((x) => x.name === data.nextSkill);
-            if (
-              skill &&
-              !playerSkills
-                ?.filter((y) => y.unique)
-                .map((y) => y.unique)
-                .includes(skill.unique)
-            ) {
-              data.skills[i] = skill;
-              data.nextSkill = null;
-            } else {
-              data.skills[i] = getRerollSkill(data, oldSkillName);
+          if (aggregateTokensEffects(data).selectSkill) {
+            let options = [] as Skill[];
+            let loopCount = 0;
+            while (options.length < 3 && loopCount < 200) {
+              const option = getRerollSkill(data, oldSkillName);
+              if (
+                ![data.nextSkill, ...options.map((x) => x.name)].includes(
+                  option.name,
+                )
+              ) {
+                options.push(option);
+              }
+              loopCount += 1;
             }
+            const nextSkill = data.nextSkill
+              ? skills.find((x) => x.name === data.nextSkill)
+              : null;
+            if (nextSkill && canLearnSkillNow(data, nextSkill)) {
+              options.push(nextSkill);
+            }
+            module.unsubscribeReply(`selectSkill:${msg.userId}`);
+            data.rerollOrb -= 1;
+            msg.friend.setPerModulesData(module, data);
+            const reply = await msg.reply(
+              `\n新しいスキルを**選択**してほしいのじゃ！\n\n${options.map((x, idx) => `[${idx + 1}] ${x.name}\n効果: ${x.desc}` + (aggregateTokensEffects(data).showSkillBonus && x.info ? `\n詳細効果: ${x.info}` : '')).join('\n\n')}\n\n[0] 変更しない`,
+              { visibility: 'specified' },
+            );
+            module.subscribeReply(`selectSkill:${msg.userId}`, reply.id, {
+              index: i,
+              options: options.map((x) => x.name),
+              oldSkillName,
+            });
+            return { reaction: 'love' };
+          }
+          if (
+            data.nextSkill &&
+            skills.find((x) => x.name === data.nextSkill) &&
+            canLearnSkillNow(
+              data,
+              skills.find((x) => x.name === data.nextSkill)!,
+            )
+          ) {
+            const skill = skills.find((x) => x.name === data.nextSkill)!;
+            data.skills[i] = skill;
+            data.nextSkill = null;
           } else {
             data.skills[i] = getRerollSkill(data, oldSkillName);
           }
@@ -1381,6 +1464,15 @@ export function aggregateSkillsEffects(data: any): SkillEffect {
   }
   if ((day == 6 || aggregatedEffect.rainbow) && aggregatedEffect.dart) {
     aggregatedEffect.dart *= 5 / 3;
+  }
+  if (aggregatedEffect.water) {
+    aggregatedEffect.ice =
+      (aggregatedEffect.ice ?? 0) * (1 + aggregatedEffect.water * 1.4);
+    aggregatedEffect.thunder =
+      (aggregatedEffect.thunder ?? 0) * (1 + aggregatedEffect.water * 1.4);
+  }
+  if ((day == 3 || aggregatedEffect.rainbow) && aggregatedEffect.water) {
+    aggregatedEffect.water *= 5 / 3;
   }
 
   if (aggregatedEffect.distributed) {

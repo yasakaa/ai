@@ -95,7 +95,8 @@ export const skillPrice = (
 ) => {
   const skillP = skillPower(_ai, skillName);
   const filteredSkills = skills.filter(
-    (x) => !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly,
+    (x) =>
+      !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly && !x.notShop,
   );
   const skill = skills.find((x) => x.name === skillName);
 
@@ -274,6 +275,17 @@ export const shopItems: ShopItem[] = [
     always: true,
   },
   {
+    name: 'カスタムショップ入場の札',
+    limit: (data) =>
+      (data.shopExp ?? 0) + (data.coin ?? 0) >= 10000 &&
+      !data.items.filter((x) => x.name === 'カスタムショップ入場の札').length,
+    desc: '所持していると、自分好みのお守りを作れるカスタムショップに入店できます （コマンド:「RPG ショップ カスタム」）',
+    price: 1,
+    type: 'token',
+    effect: { shopCustom: true },
+    always: true,
+  },
+  {
     name: `おおみそかチャレンジの札`,
     limit: (data) =>
       new Date().getMonth() === 11 &&
@@ -287,7 +299,6 @@ export const shopItems: ShopItem[] = [
   {
     name: `質問カードの札`,
     limit: (data) =>
-      false &&
       data.lv >= 384 &&
       !data.items.filter((x) => x.name === '質問カードの札').length,
     price: 50,
@@ -745,7 +756,10 @@ export const shopItems: ShopItem[] = [
     always: true,
   },
   ...skills
-    .filter((x) => !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly)
+    .filter(
+      (x) =>
+        !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly && !x.notShop,
+    )
     .map(
       (x): AmuletItem => ({
         name: `${x.name}のお守り`,
@@ -761,9 +775,10 @@ export const shopItems: ShopItem[] = [
     ),
 ];
 
-function getRandomSkills(ai, num) {
+export function getRandomSkills(ai, num) {
   let filteredSkills = skills.filter(
-    (x) => !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly,
+    (x) =>
+      !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly && !x.notShop,
   );
   const { skillNameCountMap, totalSkillCount } = skillCalculate(ai);
 
@@ -962,6 +977,7 @@ const eventAmulet = (data?) => {
       return [
         Math.random() < 0.5 ? '氷属性妖術＋' : '傲慢の力',
         ...[
+          '水属性妖術',
           '毒属性妖術',
           '慎重',
           '負けそうなら逃げる',

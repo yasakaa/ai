@@ -8,6 +8,7 @@ import { colorReply, colors } from './colors';
 import { endressEnemy, enemys, Enemy, raidEnemys } from './enemys';
 import { rpgItems } from './items';
 import { aggregateTokensEffects, shopContextHook, shopReply } from './shop';
+import { shopCustomReply, shopCustomContextHook } from './shop-custom';
 import { shop2Reply } from './shop2';
 import {
   skills,
@@ -21,6 +22,7 @@ import {
   amuletMinusDurability,
   countDuplicateSkillNames,
   skillBorders,
+  canLearnSkillNow,
 } from './skills';
 import {
   start,
@@ -155,6 +157,27 @@ export default class extends Module {
         Array.isArray(serifs.rpg.command.shop)
           ? serifs.rpg.command.shop
           : [serifs.rpg.command.shop],
+      ) &&
+      msg.includes(
+        Array.isArray(serifs.rpg.command.shopCustom)
+          ? serifs.rpg.command.shopCustom
+          : [serifs.rpg.command.shopCustom],
+      )
+    ) {
+      const data = initializeData(this, msg);
+      if (
+        (!msg.user.host && msg.user.username === config.master) ||
+        data.items.filter((x) => x.name === 'カスタムショップ入場の札').length
+      ) {
+        // カスタムショップモード
+        return shopCustomReply(this, this.ai, msg);
+      }
+    }
+    if (
+      msg.includes(
+        Array.isArray(serifs.rpg.command.shop)
+          ? serifs.rpg.command.shop
+          : [serifs.rpg.command.shop],
       )
     ) {
       // ショップモード
@@ -218,6 +241,12 @@ export default class extends Module {
     }
     if (typeof key === 'string' && key.startsWith('shopBuy:')) {
       return shopContextHook(this, key, msg, data);
+    }
+    if (typeof key === 'string' && key.startsWith('shopCustom:')) {
+      return shopCustomContextHook(this, this.ai, key, msg, data);
+    }
+    if (typeof key === 'string' && key.startsWith('selectSkill:')) {
+      return this.selectSkillHook(key, msg, data);
     }
     return raidContextHook(key, msg, data);
   }
@@ -367,6 +396,11 @@ export default class extends Module {
     if (data.items) {
       if (data.items.filter((x) => x.name === '裏ショップ入場の札').length) {
         helpMessage.push(serifs.rpg.help.shop2);
+      }
+      if (
+        data.items.filter((x) => x.name === 'カスタムショップ入場の札').length
+      ) {
+        helpMessage.push(serifs.rpg.help.shopCustom);
       }
       helpMessage.push(serifs.rpg.help.item);
     }
@@ -841,7 +875,7 @@ export default class extends Module {
 
     message += [
       `${serifs.rpg.nowStatus}`,
-      `${serifs.rpg.status.atk} : ${Math.round(atk)}`,
+      `${serifs.rpg.status.atk}/Lv : ${Math.round((atk / data.lv) * 100) / 100}`,
       `${serifs.rpg.status.post} : ${Math.round(postCount - (isSuper ? 200 : 0))}`,
       '★'.repeat(Math.floor(tp)) +
         '☆'.repeat(Math.max(5 - Math.floor(tp), 0)) +
@@ -859,6 +893,23 @@ export default class extends Module {
     const arpenX = 1 - 1 / (1 + (skillEffects.arpen ?? 0));
     edef -= Math.max(atk * arpenX, edef * arpenX);
     if (edef < enemyMinDef) edef = enemyMinDef;
+
+    // 天国と地獄は20%の効果で計算
+    atk = atk * (1 + (skillEffects.heavenOrHell ?? 0) * 0.2);
+    // 風魔法
+    atk = atk * (1 + (skillEffects.spdUp ?? 0));
+    //アイテムボーナス
+    atk =
+      atk +
+      data.lv *
+        4 *
+        Math.min(
+          (skillEffects.firstTurnItem ? 0.9 : 0.4) *
+            (1 + (skillEffects.itemEquip ?? 0)),
+          1,
+        ) *
+        (1 + (skillEffects.itemBoost ?? 0)) *
+        (1 + (skillEffects.weaponBoost ?? 0));
 
     atk =
       atk *
@@ -1602,6 +1653,10 @@ export default class extends Module {
       }
     }
 
+    if (data.enemy.fire && skillEffects.water) {
+      dmgUp *= 1 + (skillEffects.water ?? 0);
+    }
+
     const itemEquip = 0.4 + (1 - playerHpPercent) * 0.6;
     if (
       rpgItems.length &&
@@ -2086,6 +2141,10 @@ export default class extends Module {
 
       /** 敵のターンが既に完了したかのフラグ */
       let enemyTurnFinished = false;
+
+      if (count === 1 && data.enemy.fire && skillEffects.water) {
+        data.enemy.fire /= 1 + (skillEffects.water ?? 0) * 3;
+      }
 
       // 敵先制攻撃の処理
       // spdが1ではない、または戦闘ではない場合は先制攻撃しない
@@ -2732,7 +2791,7 @@ export default class extends Module {
       data.skills?.length >= 5 &&
       !data.items.filter((x) => x.name === '裏ショップ入場の札').length &&
       data.coin >= 99 &&
-      data.clearHistory.includes(':aine_youshou:')
+      data.clearHistory.includes(':mk_chickenda_gtgt:')
     ) {
       message += serifs.rpg.shop2remind;
     }
@@ -2792,6 +2851,61 @@ export default class extends Module {
         });
       return { reaction: 'hmm' };
     }
+  }
+
+  @autobind
+  private selectSkillHook(key: any, msg: Message, data: any) {
+    if (key.replace('selectSkill:', '') !== msg.userId) {
+      return { reaction: 'hmm' };
+    }
+    if (msg.extractedText.length >= 3) return false;
+
+    const rpgData = msg.friend.getPerModulesData(this);
+    if (!rpgData) return { reaction: 'hmm' };
+
+    const match = msg.extractedText
+      .replace(/[０-９]/g, (m) => '０１２３４５６７８９'.indexOf(m).toString())
+      .match(/[0-9]+/);
+    if (match == null) {
+      return {
+        reaction: 'hmm',
+      };
+    }
+    const num = parseInt(match[0]);
+    if (!num || num > data.options.length) {
+      return { reaction: 'hmm' };
+    }
+
+    this.unsubscribeReply(key);
+
+    if (num === 0) {
+      return { reaction: ':neofox_thumbsup:' };
+    }
+
+    const index = data.index;
+    const skillName = data.options[num - 1];
+    const skill = skills.find((x) => x.name === skillName);
+    if (!skill || !canLearnSkillNow(rpgData, skill)) {
+      msg.reply('そのスキルは習得できません！', { visibility: 'specified' });
+      return { reaction: 'hmm' };
+    }
+
+    rpgData.skills[index] = skill;
+    if (num === 4) {
+      rpgData.nextSkill = null;
+    }
+    msg.reply(
+      `\n` +
+        serifs.rpg.moveToSkill(data.oldSkillName, skill.name) +
+        `\n効果: ${skill.desc}` +
+        (aggregateTokensEffects(rpgData).showSkillBonus && skill.info
+          ? `\n詳細効果: ${skill.info}`
+          : ''),
+      { visibility: 'specified' },
+    );
+    msg.friend.setPerModulesData(this, rpgData);
+    skillCalculate(this.ai);
+    return { reaction: 'love' };
   }
 
   @autobind
