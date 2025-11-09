@@ -38,20 +38,10 @@ export default class extends Module {
           reaction: msg.friend.love >= 0 ? ':neofox_approve:' : null,
         };
 
-      // 3. 【リモートユーザー】かつ【親愛度 (love) が 10 未満】の場合
-      if (msg.user.host && msg.friend.love < 10) {
+      // 3. 【リモートユーザー】かつ【親愛度 (love) が 100 未満】の場合
+      if (msg.user.host && msg.friend.love < 100) {
         // 親愛度不足のエラーを返信
         msg.reply(serifs.core.followLoveErr);
-        return {
-          reaction: ':neofox_approve:',
-        };
-      }
-
-      // 4. 【リモートユーザー】かつ【AIをフォローしていない】かつ【親愛度 (love) が 0 以上】の場合
-      // ローカルユーザーはこの条件をスキップし、すぐにフォロー実行判定へ進む
-      if (msg.user.host && msg.friend.love >= 0) {
-        // 先行フォローを促すエラーを返信
-        msg.reply(serifs.core.followBackErr);
         return {
           reaction: ':neofox_approve:',
         };
