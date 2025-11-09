@@ -305,15 +305,13 @@ export function stockRandom(data, skillEffects) {
           effect: () => {
             skillEffects.defRndMax = Math.min((effectPoint / 35) * -0.7, -0.7);
             effectPoint -= Math.min(effectPoint, 35);
-            attackUpFlg = true;
           },
         },
         {
           limit: !skillEffects.defRndMin && !skillEffects.defRndMax,
           effect: () => {
-            skillEffects.defRndMax = Math.min((effectPoint / 35) * -0.7, -0.7);
-            effectPoint -= Math.min(effectPoint, 35);
-            attackUpFlg = true;
+            skillEffects.defRndMin = Math.min((effectPoint / 8) * -0.16, -0.16);
+            effectPoint -= Math.min(effectPoint, 8);
           },
         },
         {
@@ -358,4 +356,43 @@ export function stockRandom(data, skillEffects) {
     activateStr,
     skillEffects,
   };
+}
+
+export function calculateArpen(
+  data: { lv: number },
+  arpen: number,
+  edef: number,
+): number {
+  if (!arpen) return 1;
+  const D0 = data.lv * 3.5;
+  const BASE = 3.0;
+  const STEP = 6.0;
+
+  let perSkillPct = 0;
+  if (edef > 0) {
+    if (edef < D0) {
+      perSkillPct = BASE * (edef / D0);
+    } else {
+      const ratio = edef / D0;
+      const n = Math.floor(Math.log2(ratio));
+      const L = D0 * Math.pow(2, n);
+      const U = L * 2;
+      const tRaw = (edef - L) / (U - L);
+      const t = Math.max(0, Math.min(1, tRaw));
+      perSkillPct = BASE + (n + t) * STEP;
+    }
+  }
+
+  return 1 + (perSkillPct / 100) * ((arpen ?? 0) / 0.12);
+}
+
+export function applySoftCapPow2(
+  raw: number,
+  cap1 = 10,
+  cap2 = 25,
+  gamma = 0.5,
+): number {
+  const a1 = raw <= cap1 ? raw : cap1 + Math.pow(raw - cap1, gamma);
+  const a2 = a1 <= cap2 ? a1 : cap2 + Math.pow(a1 - cap2, gamma);
+  return a2;
 }

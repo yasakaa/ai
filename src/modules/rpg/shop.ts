@@ -115,7 +115,8 @@ export const skillPrice = (
               isNaN(skillP.skillNameCount) ? 0 : skillP.skillNameCount,
               0.5,
             ) /
-            (totalSkillCount / filteredSkills.length)),
+            (totalSkillCount /
+              filteredSkills.filter((x) => !x.notLearn).length)),
     ),
     6,
   );

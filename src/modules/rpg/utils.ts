@@ -15,6 +15,11 @@ import {
 } from './skills';
 import config from '@/config';
 
+export type PostCountUsageContext = {
+  type: 'normal' | 'raid';
+  key: string;
+};
+
 export function initializeData(module: rpg, msg) {
   const data = msg.friend.getPerModulesData(module);
   if (!data.clearEnemy) data.clearEnemy = [data.preEnemy ?? ''].filter(Boolean);
@@ -284,6 +289,7 @@ export async function getPostCount(
   data,
   msg,
   bonus = 0,
+  usage?: PostCountUsageContext,
 ): Promise<number> {
   let chart;
   // ユーザの投稿数を取得
@@ -296,6 +302,20 @@ export async function getPostCount(
       addInfo: true,
     });
   }
+
+  const usageField = usage
+    ? usage.type === 'raid'
+      ? 'lastRaidPostCountUsageKey'
+      : 'lastPostCountUsageKey'
+    : null;
+  const isBlocked = (targetData) => {
+    if (!usageField || !usage) return false;
+    return targetData?.[usageField] === usage.key;
+  };
+  const markUsage = (targetData) => {
+    if (!usageField || !usage) return;
+    targetData[usageField] = usage.key;
+  };
 
   // チャートがない場合
   if (!chart?.diffs) {
@@ -310,6 +330,14 @@ export async function getPostCount(
     } else {
       data.noChart = true;
     }
+
+    const mainBlocked = isBlocked(data);
+    if (mainBlocked) {
+      postCount = 0;
+    } else {
+      markUsage(data);
+    }
+
     if (msg.friend.doc.linkedAccounts?.length) {
       for (const userId of msg.friend.doc.linkedAccounts) {
         if (msg.userId === userId) {
@@ -323,18 +351,28 @@ export async function getPostCount(
           continue;
 
         /** リンク先のdata */
-        const data = friend.getPerModulesData(module);
-        if (data.noChart && data.todayNotesCount) {
-          postCount += Math.max(
-            (friend.doc.user?.notesCount ?? data.todayNotesCount) -
-              data.todayNotesCount,
-            data.todayNotesCount -
-              (data.yesterdayNotesCount ?? data.todayNotesCount),
+        const linkData = friend.getPerModulesData(module);
+        let linkedPostCount = 0;
+        if (linkData.noChart && linkData.todayNotesCount) {
+          linkedPostCount = Math.max(
+            (friend.doc.user?.notesCount ?? linkData.todayNotesCount) -
+              linkData.todayNotesCount,
+            linkData.todayNotesCount -
+              (linkData.yesterdayNotesCount ?? linkData.todayNotesCount),
           );
         } else {
-          data.noChart = true;
+          linkData.noChart = true;
         }
-        friend.setPerModulesData(module, data);
+
+        const linkedBlocked = isBlocked(linkData);
+        if (linkedBlocked) {
+          linkedPostCount = 0;
+        } else {
+          markUsage(linkData);
+        }
+
+        postCount += linkedPostCount;
+        friend.setPerModulesData(module, linkData);
       }
     }
     return postCount + bonus;
@@ -348,6 +386,13 @@ export async function getPostCount(
         (chart.diffs.withFile?.[1] ?? 0),
     );
 
+    const mainBlocked = isBlocked(data);
+    if (mainBlocked) {
+      postCount = 0;
+    } else {
+      markUsage(data);
+    }
+
     if (msg.friend.doc.linkedAccounts?.length) {
       for (const userId of msg.friend.doc.linkedAccounts) {
         if (msg.userId === userId) {
@@ -360,27 +405,41 @@ export async function getPostCount(
         if (!friend || !friend.doc?.linkedAccounts?.includes(msg.friend.userId))
           continue;
 
-        let chart;
+        let friendChart;
         if (!friend.doc?.user.host || config.forceRemoteChartPostCount) {
           // ユーザの投稿数を取得
-          chart = await ai.api('charts/user/notes', {
+          friendChart = await ai.api('charts/user/notes', {
             span: 'day',
             limit: 2,
             userId: userId,
           });
         }
 
-        postCount += Math.max(
-          (chart.diffs.normal?.[0] ?? 0) +
-            (chart.diffs.reply?.[0] ?? 0) +
-            (chart.diffs.withFile?.[0] ?? 0),
-          (chart.diffs.normal?.[1] ?? 0) +
-            (chart.diffs.reply?.[1] ?? 0) +
-            (chart.diffs.withFile?.[1] ?? 0),
-        );
+        const linkData = friend.getPerModulesData(module);
+        let linkedPostCount = 0;
+        if (friendChart?.diffs) {
+          linkedPostCount = Math.max(
+            (friendChart.diffs.normal?.[0] ?? 0) +
+              (friendChart.diffs.reply?.[0] ?? 0) +
+              (friendChart.diffs.withFile?.[0] ?? 0),
+            (friendChart.diffs.normal?.[1] ?? 0) +
+              (friendChart.diffs.reply?.[1] ?? 0) +
+              (friendChart.diffs.withFile?.[1] ?? 0),
+          );
+        }
+
+        const linkedBlocked = isBlocked(linkData);
+        if (linkedBlocked) {
+          linkedPostCount = 0;
+        } else {
+          markUsage(linkData);
+        }
+
+        postCount += linkedPostCount;
+        friend.setPerModulesData(module, linkData);
       }
     }
-    if (chart?.add) {
+    if (!mainBlocked && chart?.add) {
       const userstats = chart.add.filter(
         (x) => !msg.friend.doc.linkedAccounts?.includes(x.id),
       );

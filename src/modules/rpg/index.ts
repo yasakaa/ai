@@ -42,8 +42,9 @@ import {
   getVal,
   random,
   preLevelUpProcess,
+  deepClone,
 } from './utils';
-import { calculateStats } from './battle';
+import { calculateArpen, calculateStats, applySoftCapPow2 } from './battle';
 import Friend from '@/friend';
 import config from '@/config';
 import * as loki from 'lokijs';
@@ -574,7 +575,7 @@ export default class extends Module {
           rankmsg2 += `（同順位：${sameRankCount2 - 1}人）`;
         }
 
-        return `${label}\n1位：${(values?.[0] + (options?.addValue || 0)).toLocaleString()} ${rankmsg}${sameRankCount < 9 ? `\n10位：${(values?.[9] + (options?.addValue || 0)).toLocaleString()} ${rankmsg2}` : ''}`;
+        return `${label}\n1位：${(values?.[0] + (options?.addValue || 0)).toLocaleString()} ${rankmsg}${sameRankCount < 9 && values.length >= 10 ? `\n10位：${(values?.[9] + (options?.addValue || 0)).toLocaleString()} ${rankmsg2}` : ''}`;
       }
     };
 
@@ -779,6 +780,64 @@ export default class extends Module {
       );
       return { reaction: 'love' };
     }
+    if (msg.includes(['skillPopularity'])) {
+      const { skillNameCountMap } = skillCalculate(this.ai);
+      const filteredSkills = skills.filter(
+        (x) => !x.moveTo && !x.cantReroll && !x.unique && !x.skillOnly,
+      );
+      const totalSkillCount = filteredSkills.reduce(
+        (acc, skill) => acc + (skillNameCountMap.get(skill.name) || 0),
+        0,
+      );
+      const averageBase = filteredSkills.length
+        ? totalSkillCount / filteredSkills.filter((x) => !x.notLearn).length
+        : 0;
+      const entries = filteredSkills
+        .filter((skill) => !skill.notLearn)
+        .map((skill) => ({
+          short: skill.short ?? skill.name,
+          count: skillNameCountMap.get(skill.name) ?? 0,
+        }))
+        .sort((a, b) => b.count - a.count);
+      const filteredSkillNames = new Set(
+        filteredSkills.map((skill) => skill.name),
+      );
+      const lines: string[] = [`平均: ${averageBase.toFixed(2)}`, ''];
+      for (let i = 0; i < entries.length; i += 3) {
+        const chunk = entries
+          .slice(i, i + 3)
+          .map((entry) => `${entry.short}: ${entry.count}`);
+        lines.push(chunk.join('  '));
+      }
+      const excludedEntries = Array.from(skillNameCountMap.entries())
+        .map(([name, count]) => {
+          const skill = skills.find((x) => x.name === name);
+          return { skill, count: count ?? 0 };
+        })
+        .filter(
+          ({ skill, count }) =>
+            skill &&
+            !skill.notLearn &&
+            !filteredSkillNames.has(skill.name) &&
+            count > 0,
+        )
+        .map(({ skill, count }) => ({
+          short: skill!.short ?? skill!.name,
+          count,
+        }))
+        .sort((a, b) => b.count - a.count);
+      if (excludedEntries.length) {
+        lines.push('', '--------------------', '');
+        for (let i = 0; i < excludedEntries.length; i += 3) {
+          const chunk = excludedEntries
+            .slice(i, i + 3)
+            .map((entry) => `${entry.short}: ${entry.count}`);
+          lines.push(chunk.join('  '));
+        }
+      }
+      msg.reply(lines.join('\n'));
+      return { reaction: 'love' };
+    }
     if (msg.includes(['dataFix'])) {
       const ai = this.ai;
       const games = this.raids.find({});
@@ -813,6 +872,9 @@ export default class extends Module {
 
     // 所持しているスキル効果を読み込み
     const skillEffects = aggregateSkillsEffects(data);
+    const verboseLog = msg.includes(['-v']);
+    const formatDebug = (value: number): string =>
+      Number.isFinite(value) ? value.toFixed(3) : String(value);
 
     let color = getColor(data);
 
@@ -889,10 +951,8 @@ export default class extends Module {
 
     // 敵のステータスを計算
     let edef = data.lv * 3.5;
-    const enemyMinDef = edef * 0.4;
-    const arpenX = 1 - 1 / (1 + (skillEffects.arpen ?? 0));
-    edef -= Math.max(atk * arpenX, edef * arpenX);
-    if (edef < enemyMinDef) edef = enemyMinDef;
+
+    atk = atk * calculateArpen(data, skillEffects.arpen ?? 0, edef);
 
     // 天国と地獄は20%の効果で計算
     atk = atk * (1 + (skillEffects.heavenOrHell ?? 0) * 0.2);
@@ -1060,7 +1120,11 @@ export default class extends Module {
 
     const isMaxLevel = data.lv >= rpgData.maxLv;
 
-    let needCoin = 2;
+    let needCoin = 10;
+    if (rpgData.maxLv - data.lv >= 200) needCoin -= 2;
+    if (rpgData.maxLv - data.lv >= 150) needCoin -= 2;
+    if (rpgData.maxLv - data.lv >= 100) needCoin -= 4;
+    //if ((rpgData.maxLv - data.lv) >= 50) needCoin -= 2;
 
     // プレイ済でないかのチェック
     if (data.lastPlayedAt === nowTimeStr || data.lastPlayedAt === nextTimeStr) {
@@ -1243,7 +1307,7 @@ export default class extends Module {
     let color = getColor(data);
 
     if (!color.unlock(data)) {
-      data.color === (colors.find((x) => x.default) ?? colors[0]).id;
+      data.color = (colors.find((x) => x.default) ?? colors[0]).id;
       color =
         colors.find((x) => x.id === (data.color ?? 1)) ??
         colors.find((x) => x.default) ??
@@ -1270,6 +1334,7 @@ export default class extends Module {
       data,
       msg,
       superBonusPost,
+      { type: 'normal', key: nowTimeStr },
     );
 
     let continuousBonusNum = 0;
@@ -1298,10 +1363,14 @@ export default class extends Module {
     tp = Math.max(tp, data.maxTp / 2);
 
     if (!isSuper) {
-      data.superPoint = Math.max(data.superPoint ?? 0 - (tp - 2), -3);
+      data.superPoint = Math.max((data.superPoint ?? 0) - (tp - 2), -3);
     } else {
       data.superPoint = 0;
     }
+
+    const verboseLog = msg.includes(['-v']);
+    const formatDebug = (value: number): string =>
+      Number.isFinite(value) ? value.toFixed(3) : String(value);
 
     /** 画面に出力するメッセージ:CW */
     let cw = acct(msg.user) + ' ';
@@ -1387,6 +1456,7 @@ export default class extends Module {
       );
       // 敵が消された？？
       if (!data.enemy) data.enemy = endressEnemy(data);
+      data.enemy = deepClone(data.enemy);
       // 敵の開始メッセージなどを設定
       cw += `${data.enemy.short} ${count}${serifs.rpg.turn}`;
       // 前ターン時点のステータスを表示
@@ -1969,7 +2039,7 @@ export default class extends Module {
         (enemyAtk / (lv * 3.5)) * (getVal(data.enemy.atkx, [tp]) ?? 3) +
         (enemyDef / (lv * 3.5)) * (getVal(data.enemy.defx, [tp]) ?? 3);
       const bonus = Math.floor(
-        (enemyStrongs / 4) * skillEffects.enemyStatusBonus,
+        applySoftCapPow2(enemyStrongs / 4) * skillEffects.enemyStatusBonus,
       );
       atk = atk * (1 + bonus / 100);
       def = def * (1 + bonus / 100);
@@ -1979,8 +2049,7 @@ export default class extends Module {
       }
     }
 
-    const arpenX = 1 - 1 / (1 + (skillEffects.arpen ?? 0));
-    enemyDef -= Math.max(atk * arpenX, enemyDef * arpenX);
+    atk = atk * calculateArpen(data, skillEffects.arpen ?? 0, enemyDef);
 
     if (skillEffects.firstTurnResist && count === 1 && isBattle && isPhysical) {
       buff += 1;
@@ -2061,12 +2130,15 @@ export default class extends Module {
           message +=
             serifs.rpg.skill.weak(data.enemy.dname ?? data.enemy.name) + '\n';
         }
-        const enemyMinDef = enemyDef * 0.4;
         const weakX = 1 - 1 / (1 + skillEffects.weak * (count - 1));
         enemyAtk -= Math.max(enemyAtk * weakX, atk * weakX);
-        enemyDef -= Math.max(enemyDef * weakX, atk * weakX);
         if (enemyAtk < 0) enemyAtk = 0;
-        if (enemyDef < enemyMinDef) enemyDef = enemyMinDef;
+        const arpenX = calculateArpen(
+          data,
+          skillEffects.weak * (count - 1),
+          enemyDef,
+        );
+        atk = atk * arpenX;
       }
 
       // バフが1つでも付与された場合、改行を追加する
@@ -2271,6 +2343,31 @@ export default class extends Module {
               1,
             ) *
               (2 * critDmg - 1);
+        }
+        if (verboseLog) {
+          const debugLines: string[] = [];
+          debugLines.push(`---ダメージ計算${i + 1}回目---`);
+          debugLines.push(`攻撃力: ${formatDebug(atk)}`);
+          debugLines.push(`TP倍率: ${formatDebug(tp)}`);
+          debugLines.push(`ターン数: ${count}`);
+          debugLines.push(`行動回数: ${spd}`);
+          debugLines.push(`敵防御力: ${formatDebug(enemyDef)}`);
+          debugLines.push(`敵最大HP: ${formatDebug(enemyMaxHp)}`);
+          debugLines.push(`乱数: ${formatDebug(rng)}`);
+          debugLines.push(`ダメージ補正: ${formatDebug(dmgBonus)}`);
+          debugLines.push(`追加ダメージ: ${formatDebug(trueDmg)}`);
+          debugLines.push(`ダメージ上昇効果: ${formatDebug(dmgUp)}`);
+          debugLines.push(`会心補正: ${formatDebug(critUp)}`);
+          debugLines.push(
+            `クリティカル: ${crit ? `はい(倍率:${formatDebug(critDmg)})` : 'いいえ'}`,
+          );
+          if (itemBonus?.atk) {
+            debugLines.push(`アイテム攻撃補正: ${formatDebug(itemBonus.atk)}`);
+          }
+          if (maxdmg != null) {
+            debugLines.push(`最大ダメージ制限: ${formatDebug(maxdmg)}`);
+          }
+          message += debugLines.join('\n') + '\n';
         }
         /** ダメージ */
         let dmg =

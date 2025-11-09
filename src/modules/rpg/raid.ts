@@ -28,7 +28,7 @@ import {
   getRaidPostX,
   preLevelUpProcess,
 } from './utils';
-import { calculateStats, fortune, stockRandom } from './battle';
+import { calculateArpen, calculateStats, fortune, stockRandom } from './battle';
 import serifs from '@/serifs';
 import getDate from '@/utils/get-date';
 import { acct } from '@/utils/acct';
@@ -245,7 +245,11 @@ export async function start(triggerUserId?: string, flg?: any) {
   /** すべてのレイドゲームのリスト */
   const games = raids.find({});
 
-  if (Date.now() - games[games.length - 1].startedAt < 31 * 60 * 1000) return;
+  if (
+    games.length > 0 &&
+    Date.now() - games[games.length - 1].startedAt < 31 * 60 * 1000
+  )
+    return;
 
   ai.decActiveFactor();
 
@@ -338,7 +342,7 @@ function finish(raid: Raid) {
       (raid.finishedAt.valueOf() - raid.startedAt.valueOf()) /
         (60 * 1000 * 100),
     );
-    rpgData.raidReputations = [];
+    if (rpgData) rpgData.raidReputations = [];
     ai.post({
       text: raid.enemy.power
         ? serifs.rpg.onagare(raid.enemy.name)
@@ -396,11 +400,12 @@ function finish(raid: Raid) {
     if (sortAttackers?.[0].mark === ':blank:') {
       sortAttackers[0].mark = '👑';
     }
-    const friend = ai.lookupFriend(sortAttackers?.[0].user.id);
-    if (!friend) return;
-    const data = friend.getPerModulesData(module_);
-    data.coin = Math.max((data.coin ?? 0) + 1, data.coin);
-    friend.setPerModulesData(module_, data);
+    const friend = ai.lookupFriend(sortAttackers[0].user.id);
+    if (friend) {
+      const data = friend.getPerModulesData(module_);
+      data.coin = (data.coin ?? 0) + 1;
+      friend.setPerModulesData(module_, data);
+    }
   }
 
   let references: string[] = [];
@@ -531,7 +536,7 @@ function finish(raid: Raid) {
     const friend = ai.lookupFriend(luckyUser.id);
     if (!friend) return;
     const data = friend.getPerModulesData(module_);
-    data.coin = Math.max((data.coin ?? 0) + (bonus ?? 1), data.coin);
+    data.coin = Math.max((data.coin ?? 0) + (bonus ?? 1), data.coin ?? 0);
     if (!data.maxLucky || data.maxLucky < (bonus ?? 1))
       data.maxLucky = bonus ?? 1;
     friend.setPerModulesData(module_, data);
@@ -550,7 +555,7 @@ function finish(raid: Raid) {
     const data = friend.getPerModulesData(module_);
     data.coin = Math.max(
       (data.coin ?? 0) + Math.floor((score ?? 4) * bonusCoin),
-      data.coin,
+      data.coin ?? 0,
     );
     const winCount = sortAttackers.filter((y) => x.dmg > y.dmg).length;
     const loseCount = sortAttackers.filter((y) => x.dmg < y.dmg).length;
@@ -632,7 +637,7 @@ export async function raidContextHook(key: any, msg: Message, data: any) {
     }
   } else {
     /** 総ダメージの計算結果 */
-    result = await getTotalDmg(msg, enemy);
+    result = await getTotalDmg(msg, enemy, raid.postId);
   }
 
   if (raid.attackers.some((x) => x.dmg > 0 && x.user.id == msg.userId)) {
@@ -695,7 +700,7 @@ export function raidTimeoutCallback(data: any) {
   }
 }
 
-export async function getTotalDmg(msg, enemy: RaidEnemy) {
+export async function getTotalDmg(msg, enemy: RaidEnemy, raidPostId?: string) {
   // データを読み込み
   const data = initializeData(module_, msg);
   if (!data.lv)
@@ -801,7 +806,14 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
         (skillEffects.postXUp ?? 0) *
           Math.min((postCount - superBonusPost) / 20, 10));
   } else {
-    postCount = await getPostCount(ai, module_, data, msg, superBonusPost);
+    postCount = await getPostCount(
+      ai,
+      module_,
+      data,
+      msg,
+      superBonusPost,
+      raidPostId ? { type: 'raid', key: raidPostId } : undefined,
+    );
 
     continuousBonusNum = Math.min(Math.max(10, postCount / 2), 25);
 
@@ -820,7 +832,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
   }
 
   if (!isSuper) {
-    data.superPoint = Math.max(data.superPoint ?? 0 - (tp - 2), -3);
+    data.superPoint = Math.max((data.superPoint ?? 0) - (tp - 2), -3);
   } else {
     data.superPoint = 0;
   }
@@ -1474,15 +1486,11 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
     }
   }
 
-  const enemyMinDef = enemyDef * 0.4;
-  const maxDownDef = enemyDef * 0.6;
-  const arpenX = 1 - 1 / (1 + (skillEffects.arpen ?? 0));
-  const downDef = Math.max(atk * arpenX, enemyDef * arpenX);
-  enemyDef -= downDef;
-  if (enemyDef < enemyMinDef) enemyDef = enemyMinDef;
-  if (verboseLog && Math.min(downDef, maxDownDef) > 3.5) {
+  const arpenX = calculateArpen(data, skillEffects.arpen ?? 0, enemyDef);
+  atk = atk * arpenX;
+  if (verboseLog && arpenX > 1) {
     buff += 1;
-    message += `貫スキル効果: -x${formatNumber(Math.min(downDef, maxDownDef) / (lv * 3.5))} (x${formatNumber(enemyDef / (lv * 3.5))})\n`;
+    message += `貫スキル効果: A${displayDifference(arpenX)}\n`;
   }
 
   // バフが1つでも付与された場合、改行を追加する
@@ -1638,13 +1646,16 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
         buff += 1;
         message += serifs.rpg.skill.weak(enemy.dname ?? enemy.name) + '\n';
       }
-      const enemyMinDef = enemyDef * 0.4;
       const weakXList = [0, 0.25, 0.5, 1, 1.5, 3.5, 4, 4.5, 5];
       const weakX = 1 - 1 / (1 + skillEffects.weak * weakXList[count - 1]);
       enemyAtk -= Math.max(enemyAtk * weakX, atk * weakX);
-      enemyDef -= Math.max(enemyDef * weakX, atk * weakX);
+      const arpenX = calculateArpen(
+        data,
+        skillEffects.weak * weakXList[count - 1],
+        enemyDef,
+      );
+      atk = atk * arpenX;
       if (enemyAtk < 0) enemyAtk = 0;
-      if (enemyDef < enemyMinDef) enemyDef = enemyMinDef;
       if (verboseLog) {
         buff += 1;
         message += `毒スキル効果: ${displayDifference(1 - weakX)} (x${formatNumber(enemyAtk / (lv * 3.5))} / x${formatNumber(enemyDef / (lv * 3.5))})\n`;
@@ -2555,7 +2566,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
       }
 
       if (enemy && skillEffects.envy) {
-        const targetScore = ((1024 / ((enemy?.power ?? 30) / 30)) * 2) ^ 4;
+        const targetScore = (1024 / ((enemy?.power ?? 30) / 30)) * 2 ** 4;
         const rate = 1 - 0.7 * Math.max(1 - totalDmg / targetScore, 0);
         if (rate < 1) {
           enemyAtkX = enemyAtkX * rate;
@@ -2589,7 +2600,7 @@ export async function getTotalDmg(msg, enemy: RaidEnemy) {
         data.skills?.length &&
         data.skills?.length <= 3
       ) {
-        const targetScore = ((1024 / ((enemy?.power ?? 30) / 30)) * 2) ^ 3;
+        const targetScore = (1024 / ((enemy?.power ?? 30) / 30)) * 2 ** 3;
         const rate =
           1 -
           (data.skills?.length >= 4
@@ -3121,16 +3132,6 @@ export async function getTotalDmg2(msg, enemy: RaidEnemy) {
     message += serifs.rpg.oomisoka + '\n';
     buff += 1;
     playerHp = 1;
-  }
-
-  if (
-    aggregateTokensEffects(data).oomisoka &&
-    new Date().getMonth() === 11 &&
-    new Date().getDate() === 31
-  ) {
-    message += serifs.rpg.oomisoka + '\n';
-    buff += 1;
-    playerHp = 1;
     dmgup = 0.25;
   }
 
@@ -3468,15 +3469,15 @@ export async function getTotalDmg3(msg, enemy: RaidEnemy) {
     dex = dex * (1 + expBonus);
   }
 
-  const atkDmgUp = skillEffects.atkDmgUp - skillEffects.defDmgUp;
-  const atkUp = skillEffects.atkUp - skillEffects.defUp;
+  const atkDmgUp = (skillEffects.atkDmgUp ?? 0) - (skillEffects.defDmgUp ?? 0);
+  const atkUp = (skillEffects.atkUp ?? 0) - (skillEffects.defUp ?? 0);
 
   const atkX =
     (atkDmgUp && atkDmgUp > 0 ? 1 / (1 + (atkDmgUp ?? 0)) : 1) *
     (atkUp && atkUp > 0 ? 1 / (1 + (atkUp ?? 0)) : 1) *
     (color.reverseStatus
-      ? 0.75 + (data.atk / (data.atk + data.def)) * 0.5
-      : 0.75 + (data.def / (data.atk + data.def)) * 0.5);
+      ? 0.75 + (data.atk / (data.atk + data.def || 1)) * 0.5
+      : 0.75 + (data.def / (data.atk + data.def || 1)) * 0.5);
 
   if (atkX < 1) {
     buff += 1;
@@ -3806,7 +3807,7 @@ export async function getTotalDmg3(msg, enemy: RaidEnemy) {
 
   let reply;
 
-  if (Number.isNaN(totalDmg) || totalDmg < 0) {
+  if (!Number.isFinite(totalDmg) || Number.isNaN(totalDmg) || totalDmg < 0) {
     console.log(totalDmg);
     reply = await msg.reply(
       `エラーが発生したのじゃ。もう一度試してみてほしいのじゃ。`,

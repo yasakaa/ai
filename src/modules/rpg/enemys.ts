@@ -110,6 +110,9 @@ export type RaidEnemy = Enemy & {
   scoreMsg2?: string;
 };
 
+const has = (arr?: string[], name?: string) =>
+  Array.isArray(arr) && !!name && arr.includes(name);
+
 /** 敵一覧 */
 export const enemys: Enemy[] = [
   {
@@ -907,7 +910,7 @@ export const enemys: Enemy[] = [
     mark2: '★',
     lToR: false,
     atkmsg: (dmg) =>
-      `阨ちゃんの妖術！\n:panjandrum2:に${dmg}ポイントのダメージ！`,
+      `阨ちゃんは全力で羽を振って衝撃波を出した！\n:mk_tatsu:に${dmg}ポイントのダメージ！`,
     defmsg: (dmg) =>
       `:panjandrum2:の高速スピン！\n阨ちゃんは${dmg}ポイントのダメージ！`,
     abortmsg: ':panjandrum2:は回転力で阨ちゃんの連続攻撃を止めた！',
@@ -1021,9 +1024,9 @@ export const enemys: Enemy[] = [
     limit: (data) =>
       (data.winCount ?? 0) >= 5 &&
       (data.streak ?? 0) >= 5 &&
-      !data.clearEnemy.includes(':aine_youshou:'),
-    msg: '村長に話しかけたつもりが様子がおかしい…。怒った:aine_oko:が言い返してきた！',
-    short: ':aine_oko:と口論中',
+      !has(data.clearEnemy, ':mk_chickenda_gtgt:'),
+    msg: ':mk_chickenda:が勝負を仕掛けてきた！',
+    short: ':mk_chickenda:と戦い中',
     mark: '☆',
     mark2: '★',
     lToR: false,
@@ -1414,7 +1417,6 @@ export const raidEnemys: RaidEnemy[] = [
     pattern: 3,
   },
 ];
-
 /*
 export const summerEnemys: Enemy[] = [
     { name: "ビーチ", msg: "阨ちゃんはビーチで休憩したいようだ！", short: "ビーチで休憩中", hpmsg: "リラックス度", atkmsg: dmg => `阨ちゃんは砂の城を作った！\nリラックス度が${dmg}ポイントアップ！`, defmsg: dmg => `阨ちゃんは日焼けしすぎて${dmg}ポイントのダメージ！`, winmsg: "阨ちゃんはビーチで十分にリラックスした！", losemsg: "阨ちゃんは日焼けで真っ赤になってしまった…", atk: 1, def: 1, atkx: 3, defx: 3, ltoR: true },
@@ -1445,11 +1447,21 @@ export const summerEnemys: Enemy[] = [
 export const endressEnemy = (data): Enemy => ({
   name: '修行モード',
   msg:
-    (data.endress ?? 0)
-      ? `修行の途中 (ステージ${data.endress + 1})`
-      : '阨ちゃんは修行に出たいようだ。',
+    (data.endress ?? 0) >= 100
+      ? (data.endress ?? 0) !== 100
+        ? `修行の途中 (ステージ⭐${data.endress - 99})`
+        : '阨ちゃんは再び修行に出たいようだ。'
+      : (data.endress ?? 0)
+        ? `修行の途中 (ステージ${data.endress + 1})`
+        : '阨ちゃんは修行に出たいようだ。',
   short:
-    (data.endress ?? 0) ? `修行の途中 (ステージ${data.endress + 1})` : '修行中',
+    (data.endress ?? 0) >= 100
+      ? (data.endress ?? 0) !== 100
+        ? `修行の途中 (ステージ⭐${data.endress - 99})`
+        : '再び修行中'
+      : (data.endress ?? 0)
+        ? `修行の途中 (ステージ${data.endress + 1})`
+        : '修行中',
   hpmsg: '進行度',
   lToR: true,
   mark: '☆',
@@ -1462,11 +1474,23 @@ export const endressEnemy = (data): Enemy => ({
   losemsg: '阨ちゃんは疲れてしまった…',
   escapemsg:
     '阨ちゃんは疲れてしまったが、\n焦ることもないなと思い、\nその場で休憩を始めた。',
-  atk: 1.5 + 0.1 * (data.endress ?? 0),
-  def: 2 + 0.3 * (data.endress ?? 0),
-  atkx: 3 + 0.05 * (data.endress ?? 0),
-  defx: 3 + 0.15 * (data.endress ?? 0),
-  abort: 0.01,
+  atk:
+    (data.endress ?? 0) >= 100
+      ? 12 + 2 * (data.endress - 100)
+      : 1.5 + 0.1 * (data.endress ?? 0),
+  def:
+    (data.endress ?? 0) >= 100
+      ? 32 + 6 * (data.endress - 100)
+      : 2 + 0.3 * (data.endress ?? 0),
+  atkx:
+    (data.endress ?? 0) >= 100
+      ? 8 + 1 * (data.endress - 100)
+      : 3 + 0.05 * (data.endress ?? 0),
+  defx:
+    (data.endress ?? 0) >= 100
+      ? 18 + 3 * (data.endress - 100)
+      : 3 + 0.15 * (data.endress ?? 0),
+  abort: (data.endress ?? 0) >= 100 ? 0 : 0.01,
 });
 
 export const ending = (module: rpg, msg: Message, _data: any): any => {
@@ -1498,17 +1522,12 @@ export const ending = (module: rpg, msg: Message, _data: any): any => {
     `最大体力 : ${playerMaxHp}`,
     `${serifs.rpg.status.atk} : ${data.atk ?? 0}`,
     `${serifs.rpg.status.def} : ${data.def ?? 0}`,
-    `${serifs.rpg.status.spd} : ${
-      Math.floor((msg.friend.love ?? 0) / 100) + 1
-    }`,
+    `${serifs.rpg.status.spd} : ${Math.floor((msg.friend.love ?? 0) / 100) + 1}`,
     `平均能力上昇量 : ${((data.atk + data.def) / (data.lv - 1)).toFixed(2)}`,
     `これまでの勝利数 : ${data.winCount}`,
     `最高修行ステージ数 : ${(data.maxEndress ?? 0) + 1}`,
     `最大耐ダメージ数 : ${data.superMuscle ?? 0}`,
-    `最大能力上昇値 : ${data.maxStatusUp ?? 0} (1 / ${Math.pow(
-      3,
-      data.maxStatusUp - 7,
-    )})`,
+    `最大能力上昇値 : ${data.maxStatusUp ?? 0} (1 / ${Math.pow(3, data.maxStatusUp - 7)})`,
     `最大木人ダメージ : ${data.bestScore ?? 0}`,
     `覚醒した回数 : ${data.superCount ?? 0}`,
     `解放した色の数 : ${unlockCount(data, [], false)}`,
@@ -1556,7 +1575,7 @@ export const ending = (module: rpg, msg: Message, _data: any): any => {
   data.atk = (data.atk ?? 0) + atkUp;
   data.def = (data.def ?? 0) + totalUp - atkUp;
 
-  msg.friend.setPerModulesData(new rpg(), data);
+  msg.friend.setPerModulesData(module, data);
 
   msg.reply(`<center>${message}</center>`, {
     cw,
