@@ -374,18 +374,27 @@ export default {
 
     finish: 'げえむの結果発表なのじゃ！',
 
-    finishWithWinner: (user, name, item, reverse, perfect, winCount, medal) =>
-      `${reverse ? '...ありゃ？わ、わらわとしたことが逆順で集めちゃったかもしれん…むぐぐ！\n' : ''}今回は${user}さん${
-        name ? `(${name})` : ''
-      }の${perfect ? 'パーフェクト' : ''}勝ちじゃ！${
-        winCount === 5 || winCount % 10 === 0
-          ? `\nこれが${winCount}回目の勝利みたいじゃの！`
-          : winCount === 1
-            ? '\nこれが初勝利みたいじゃ！'
-            : ''
-      }おめでとう！\n景品として${item}${
-        medal ? `とあいのお手製めだる(${medal}個目)` : ''
-      }をやるぞ！\nまた次もわらわと遊んでほしいぞ！`,
+    finishWithWinner: (
+      user,
+      name,
+      item,
+      reverse,
+      perfect,
+      winCount,
+      medal,
+      rateInfo?: {
+        beforeRate: number;
+        afterRate: number;
+        beforeRank?: number;
+        afterRank?: number;
+      },
+    ) => {
+      const rateText = rateInfo
+        ? `\nレート : ${Math.round(rateInfo.beforeRate)} → ${Math.round(rateInfo.afterRate)}\n順位 : ${rateInfo.beforeRank != null ? `${rateInfo.beforeRank}位` : '--位'} → ${rateInfo.afterRank != null ? `${rateInfo.afterRank}位` : '--位'}`
+        : '';
+      return `${reverse ? '...ありゃ？わ、わらわとしたことが逆順で集めちゃったかもしれん…むぐぐ！\n' : ''}
+      今回は${user}さん${name ? `(${name})` : ''}の${perfect ? 'パーフェクト' : ''}勝ちじゃ！${winCount === 5 || winCount % 10 === 0 ? `\nこれが${winCount}回目の勝利みたいじゃの！` : winCount === 1 ? '\nこれが初勝利みたいじゃ！' : ''}おめでとうなのじゃ！$また次もわらわと遊んでほしいぞ！`;
+    },
 
     finishWithNoWinner: (item) =>
       `今回は誰も勝ち残れんかったのう... こういうときは:mesugaki_of_philosophy_banbutsu_ha_zako_nari:といえと村長に教えられたが本当かのう？ \n${item}はわらわがもらっておくぞ！\nこれに懲りずにまたわらわと遊んでほしいぞ♪`,

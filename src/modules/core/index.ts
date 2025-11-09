@@ -1,5 +1,5 @@
 import autobind from 'autobind-decorator';
-import loki from 'lokijs';
+import * as loki from 'lokijs';
 import Module from '@/module';
 import Message from '@/message';
 import serifs from '@/serifs';
@@ -9,6 +9,13 @@ import { acct } from '@/utils/acct';
 import { genItem, itemPrefixes } from '@/vocabulary';
 import Friend, { FriendDoc } from '@/friend';
 import config from '@/config';
+import {
+  ensureKazutoriData,
+  findRateRank,
+  createDefaultKazutoriData,
+  hasKazutoriRateHistory,
+} from '@/modules/kazutori/rate';
+import type { EnsuredKazutoriData } from '@/modules/kazutori/rate';
 
 const titles = ['さん', 'くん', '君', 'ちゃん', '様', '先生'];
 
@@ -57,8 +64,9 @@ export default class extends Module {
       console.log('Linked List: ' + this.list.id);
       const friends = this.ai.friends.find() ?? [];
       const linkedUsers = friends.filter((x) => x.linkedAccounts);
-      const listUserIds = new Set(this.list.userIds);
-      let newLinkedUserIds = new Set();
+      const listUserIds = new Set<string>(this.list.userIds ?? []);
+      const newLinkedUserIds = new Set<string>();
+      const validLinkedUserIds = new Set<string>();
 
       for (const linkedUser of linkedUsers) {
         if (
@@ -69,38 +77,55 @@ export default class extends Module {
             new Set(linkedUser.linkedAccounts),
           );
         }
-        for (const linkedId of linkedUser.linkedAccounts!) {
+        for (const linkedId of linkedUser.linkedAccounts ?? []) {
+          validLinkedUserIds.add(linkedId);
           if (!listUserIds.has(linkedId)) {
             newLinkedUserIds.add(linkedId);
           }
         }
       }
 
-      newLinkedUserIds.forEach(async (x) => {
-        if (this.list?.id) {
-          await this.ai
-            .api('users/lists/push', { listId: this.list.id, userId: x })
-            .then(async (res) => {
-              if (
-                typeof x === 'string' &&
-                res?.response?.body?.error?.code === 'YOU_HAVE_BEEN_BLOCKED'
-              ) {
-                // ブロックされたユーザーIDをリンクしているユーザーのアカウントからそのIDを削除
-                for (const linkedUser of linkedUsers) {
-                  if (linkedUser.linkedAccounts?.includes(x)) {
-                    // 該当IDを削除
-                    linkedUser.linkedAccounts =
-                      linkedUser.linkedAccounts.filter((id) => id !== x);
-                    console.log(
-                      `Removed blocked ID ${x} from user ${linkedUser.userId}`,
-                    );
-                  }
-                }
-              }
-            });
-          console.log('Linked Account List Push: ' + x);
+      const removeLinkedUserIds: string[] = [];
+      for (const id of listUserIds) {
+        if (!validLinkedUserIds.has(id)) {
+          removeLinkedUserIds.push(id);
         }
-      });
+      }
+
+      for (const id of removeLinkedUserIds) {
+        if (!this.list?.id) continue;
+        await this.ai.api('users/lists/pull', {
+          listId: this.list.id,
+          userId: id,
+        });
+        console.log('Linked Account List Pull: ' + id);
+      }
+
+      for (const x of newLinkedUserIds) {
+        if (!this.list?.id) continue;
+        const res = await this.ai.api('users/lists/push', {
+          listId: this.list.id,
+          userId: x,
+        });
+        if (
+          typeof x === 'string' &&
+          res?.response?.body?.error?.code === 'YOU_HAVE_BEEN_BLOCKED'
+        ) {
+          // ブロックされたユーザーIDをリンクしているユーザーのアカウントからそのIDを削除
+          for (const linkedUser of linkedUsers) {
+            if (linkedUser.linkedAccounts?.includes(x)) {
+              // 該当IDを削除
+              linkedUser.linkedAccounts = linkedUser.linkedAccounts.filter(
+                (id) => id !== x,
+              );
+              console.log(
+                `Removed blocked ID ${x} from user ${linkedUser.userId}`,
+              );
+            }
+          }
+        }
+        console.log('Linked Account List Push: ' + x);
+      }
     }
   }
 
@@ -120,6 +145,7 @@ export default class extends Module {
       this.getStatus(msg) ||
       (await this.getEmojiData(msg)) ||
       this.getInventory(msg) ||
+      this.convertUnixtime(msg) ||
       this.getAdana(msg) ||
       this.getBananasu(msg) ||
       this.getActiveFactor(msg) ||
@@ -133,6 +159,9 @@ export default class extends Module {
   @autobind
   private async linkAccount(msg: Message) {
     if (!msg.text) return false;
+    if (msg.includes(['リンク解除', 'unlink'])) {
+      return this.unlinkAccount(msg);
+    }
     if (!msg.includes(['リンク', 'link'])) return false;
 
     const exp = /@(\w+)@?([\w.-]+)?/.exec(
@@ -209,7 +238,7 @@ export default class extends Module {
           }
 
           let chart;
-          if (!friend.doc.user.host || config.forceRemoteChartPostCount) {
+          if (config.forceRemoteChartPostCount) {
             // ユーザの投稿数を取得
             chart = await this.ai.api('charts/user/notes', {
               span: 'day',
@@ -252,7 +281,7 @@ export default class extends Module {
           }
         }
       }
-      if (chart.add) {
+      if (chart?.add) {
         const userstats = chart.add.filter(
           (x) => !msg.friend.doc.linkedAccounts?.includes(x.id),
         );
@@ -304,9 +333,6 @@ export default class extends Module {
         msg.reply(
           `そのユーザはわらわが知らないユーザのようなのじゃ！\n@${exp[1]}@${exp[2]} から \`@ai@minzukey.uk リンク ${acct(msg.user)}\`と送信すると上手く行く可能性があるのじゃ！`,
         );
-        msg.reply(
-          `そのユーザはわらわが知らないユーザのようなのじゃ！\n@${exp[1]}@${exp[2]} から \`@ai@minzukey.uk リンク ${acct(msg.user, true)}\`と送信すると上手く行く可能性があるのじゃ！`,
-        );
         return { reaction: ':neofox_confused:' };
       }
 
@@ -344,6 +370,82 @@ export default class extends Module {
 
       return true;
     }
+  }
+
+  @autobind
+  private async unlinkAccount(msg: Message) {
+    if (!msg.friend.doc.linkedAccounts?.length) {
+      msg.reply(
+        'リンクしているアカウントがないのじゃ！\n新しくアカウントをリンクさせたい場合は、リンクの後にあなたのサブアカウントへのメンションを入れてほしいのじゃ！',
+      );
+      return { reaction: ':mk_hotchicken:' };
+    }
+
+    const exp = /@(\w+)@?([\w.-]+)?/.exec(
+      msg.extractedText.replace(/リンク解除|unlink/gi, ''),
+    );
+
+    if (!exp?.[1]) {
+      msg.reply(
+        'リンク解除の後に解除したいアカウントへのメンションを入力してほしいのじゃ！',
+      );
+      return { reaction: ':mk_hotchicken:' };
+    }
+
+    const doc = this.ai.friends.find({
+      'user.username': exp[1],
+      ...(exp?.[2] ? { 'user.host': exp[2] } : {}),
+    } as any) as any;
+    let filteredDoc = exp?.[2] ? doc : doc.filter((x) => x.user.host == null);
+
+    if (filteredDoc.length === 0) {
+      const doc = this.ai.friends.find({
+        'user.username': exp[1],
+      } as any) as any;
+      filteredDoc = doc.filter((x) => x.user.host == null);
+    }
+
+    if (
+      filteredDoc.length !== 1 ||
+      (filteredDoc[0].userId === msg.userId &&
+        exp?.[2] &&
+        exp?.[2] !== 'mkkey.net')
+    ) {
+      msg.reply(
+        `そのユーザはわらわが知らないユーザのようじゃ！\n@${exp[1]}@${exp[2]} から \`@magi@minazukey.uk リンク ${acct(msg.user, true)}\`と送信してくれると上手く行く可能性があるのじゃ！`,
+      );
+      return { reaction: ':neofox_approve:' };
+    }
+
+    const target = filteredDoc[0];
+
+    if (!msg.friend.doc.linkedAccounts?.includes(target.userId)) {
+      msg.reply('そのアカウントとはリンクされていないのじゃ！');
+      return { reaction: ':neofox_approve:' };
+    }
+
+    const updatedLinkedAccounts = (msg.friend.doc.linkedAccounts ?? []).filter(
+      (id) => id !== target.userId,
+    );
+    msg.friend.doc.linkedAccounts = updatedLinkedAccounts;
+    msg.friend.save();
+
+    const targetFriend = this.ai.lookupFriend(target.userId);
+    if (targetFriend?.doc?.linkedAccounts?.includes(msg.friend.userId)) {
+      const targetLinkedAccounts = (
+        targetFriend.doc.linkedAccounts ?? []
+      ).filter((id) => id !== msg.friend.userId);
+      targetFriend.doc.linkedAccounts = targetLinkedAccounts;
+      targetFriend.save();
+    }
+
+    await this.linkAccountListAdd();
+
+    msg.reply(
+      `アカウントのリンクを解除したのじゃ！\nまたリンクしたくなったら \`リンク ${acct(target.user, true)}\` と話しかけてほしいのじゃ！`,
+    );
+
+    return true;
   }
 
   @autobind
@@ -428,7 +530,7 @@ export default class extends Module {
     }
 
     console.log(text);
-    msg.reply(`\n\`\`\`\n${text}\n\`\`\`\n${text.length}`, {
+    msg.reply(`\n\`\`\`\n${text}\n\`\`\``, {
       visibility: 'specified',
     });
 
@@ -445,6 +547,7 @@ export default class extends Module {
       if (result[key] != undefined) {
         if (Array.isArray(result[key]) && Array.isArray(obj2[key])) {
           // 配列の場合は結合する
+          if (key === 'linkedAccounts') continue;
           result[key] = result[key].concat(obj2[key]);
         } else if (
           typeof result[key] === 'number' &&
@@ -461,6 +564,7 @@ export default class extends Module {
           !Array.isArray(result[key])
         ) {
           // オブジェクトの場合は再帰的にマージする
+          if (key === 'rpg') continue;
           result[key] = this.mergeAndSum(result[key], obj2[key]);
         } else {
           // 他の型の場合は後の方を採用する（ここでは単純に上書きするようにしています）
@@ -494,9 +598,21 @@ export default class extends Module {
     if (doc2 == null) return { reaction: ':neofox_heart:' };
 
     doc2.doc.name = doc2.name || doc1.name;
-    for (let i = 0; i < (doc1.love ?? 0) / 0.5; i++) {
+    let x = 0;
+    let y = 0;
+    while (y < doc1.love) {
+      const amount =
+        y > 100
+          ? Math.ceil((0.5 / (((y || 0) * 2) / 100 - 1)) * 100) / 100
+          : 0.5;
+      y = parseFloat((y + amount || 0).toFixed(2));
+      x += 1;
+    }
+    console.log(`${x} : ${y}`);
+    for (let i = 0; i < x; i++) {
       doc2.incLove(0.1, 'merge');
     }
+    doc1.doc.love = 0;
     doc2.doc.married = doc1.married || doc2.married;
     doc2.doc.perModulesData = this.mergeAndSum(
       doc1.doc.perModulesData,
@@ -506,7 +622,9 @@ export default class extends Module {
       doc1.doc.kazutoriData,
       doc2.doc.kazutoriData,
     );
+    doc1.doc.kazutoriData = createDefaultKazutoriData();
     doc2.save();
+    doc1.save();
 
     let json = JSON.parse(JSON.stringify(doc2.doc));
 
@@ -557,10 +675,7 @@ export default class extends Module {
       .sort((a, b) => (b.love ?? 0) - (a.love ?? 0))
       .map(
         (x) =>
-          `${x.user ? `@${x.user?.username}${x.user?.host ? `@${x.user.host}` : ''}` : x.userId} : ★${(
-            (x.love ?? 0) /
-            (100 / 7)
-          ).toFixed(2)}`,
+          `${x.user ? `@${x.user?.username}${x.user?.host ? `@${x.user.host}` : ''}` : x.userId} : ★${((x.love ?? 0) / (100 / 7)).toFixed(2)}`,
       );
 
     msg.reply(`ランキング\n\n${rank.join('\n')}`, {
@@ -675,6 +790,29 @@ export default class extends Module {
   }
 
   @autobind
+  private convertUnixtime(msg: Message): boolean {
+    if (!msg.text) return false;
+    if (!msg.text.includes('のunixtimeは')) return false;
+
+    const timeStr = msg.extractedText.match(/^(.+?)のunixtimeは/)![1].trim();
+
+    if (!isNaN(Date.parse(timeStr))) {
+      const time = new Date(timeStr);
+      msg.reply(
+        serifs.core.unixtime(
+          `${time.toString()}`,
+          `${time.toISOString()}`,
+          time.valueOf() / 1000,
+        ),
+      );
+    } else {
+      msg.reply(serifs.core.invalidDate);
+    }
+
+    return true;
+  }
+
+  @autobind
   private getLove(msg: Message): boolean {
     if (!msg.text) return false;
     if (
@@ -683,6 +821,11 @@ export default class extends Module {
       !msg.text.includes('なつき度')
     )
       return false;
+
+    const { data: kazutoriData, updated: kazutoriUpdated } = ensureKazutoriData(
+      msg.friend.doc,
+    );
+    if (kazutoriUpdated) msg.friend.save();
 
     const lovep = msg.friend.love || 0;
     let love = '';
@@ -708,6 +851,11 @@ export default class extends Module {
     if (!msg.text.includes('ステータス') && !msg.includes(['status']))
       return false;
 
+    const { data: kazutoriData, updated: kazutoriUpdated } = ensureKazutoriData(
+      msg.friend.doc,
+    );
+    if (kazutoriUpdated) msg.friend.save();
+
     const lovep = msg.friend.love || 0;
     let love = '';
     let over = Math.floor(lovep / (100 / 7)) - 7;
@@ -724,48 +872,36 @@ export default class extends Module {
 
     const lovemsg = `懐き度 : ${love}`;
 
-    const kazutori = msg.friend.doc.kazutoriData?.playCount
-      ? `数取り : ${msg.friend.doc.kazutoriData?.winCount} / ${msg.friend.doc.kazutoriData?.playCount}${
-          msg.friend.doc.kazutoriData?.rate
-            ? ` (${msg.friend.doc.kazutoriData?.rate})`
-            : ''
-        }${msg.friend.doc.kazutoriData?.medal ? '\nトロフィー : ' + msg.friend.doc.kazutoriData?.medal : ''}`
-      : undefined;
+    const rateInfo = this.getKazutoriRateInfo(msg.friend.userId);
+    const rankText = rateInfo?.rank != null ? `${rateInfo.rank}位` : undefined;
+    const rateText =
+      rateInfo?.rate != null
+        ? `\nレート : ${Math.round(rateInfo.rate)}${rankText ? ` / ${rankText}` : ''}`
+        : '';
+    const kazutori = `数取り : ${kazutoriData.winCount ?? 0} / ${kazutoriData.playCount ?? 0}${rateText}${kazutoriData.medal ? '\nトロフィー : ' + kazutoriData.medal : ''}`;
 
+    const bonus = msg.friend.doc.perModulesData?.rpg
+      ? (Math.floor((msg.friend.doc.kazutoriData?.winCount ?? 0) / 3) +
+          (msg.friend.doc.kazutoriData?.medal ?? 0) +
+          (Math.floor((msg.friend.doc.kazutoriData?.playCount ?? 0) / 7) +
+            (msg.friend.doc.kazutoriData?.medal ?? 0))) /
+        2
+      : 0;
     const rpg = msg.friend.doc.perModulesData?.rpg
       ? [
           serifs.rpg.rpgMode +
             ((msg.friend.doc.perModulesData.rpg.clearHistory ?? []).includes(
               'ending',
             )
-              ? ' ⭐'
+              ? '⭐'
+              : '') +
+            ((msg.friend.doc.perModulesData.rpg.maxEndress ?? 0) >= 99
+              ? '⭐'
               : ''),
-          `  ${serifs.rpg.status.enemy} : ${
-            msg.friend.doc.perModulesData.rpg.enemy
-              ? (msg.friend.doc.perModulesData.rpg.enemy?.short ?? '')
-              : '探索中'
-          }`,
+          `  ${serifs.rpg.status.enemy} : ${msg.friend.doc.perModulesData.rpg.enemy ? (msg.friend.doc.perModulesData.rpg.enemy?.short ?? '') : '探索中'}`,
           `  ${serifs.rpg.status.lv} : ${msg.friend.doc.perModulesData.rpg.lv ?? 1}`,
-          `  ${serifs.rpg.status.atk} : ${msg.friend.doc.perModulesData.rpg.atk ?? 0}${
-            msg.friend.doc.kazutoriData?.winCount >= 3
-              ? ` (+${Math.floor(
-                  ((Math.floor(msg.friend.doc.kazutoriData?.winCount / 3) +
-                    (msg.friend.doc.kazutoriData?.medal ?? 0)) *
-                    (100 + (msg.friend.doc.perModulesData.rpg.atk ?? 0))) /
-                    100,
-                )})`
-              : ''
-          }`,
-          `  ${serifs.rpg.status.def} : ${msg.friend.doc.perModulesData.rpg.def ?? 0}${
-            msg.friend.doc.kazutoriData?.playCount >= 7
-              ? ` (+${Math.floor(
-                  ((Math.floor(msg.friend.doc.kazutoriData?.playCount / 7) +
-                    (msg.friend.doc.kazutoriData?.medal ?? 0)) *
-                    (100 + (msg.friend.doc.perModulesData.rpg.def ?? 0))) /
-                    100,
-                )})`
-              : ''
-          }`,
+          `  ${serifs.rpg.status.atk} : ${msg.friend.doc.perModulesData.rpg.atk ?? 0}${bonus >= 1 ? ` (+${Math.floor(bonus * ((100 + (msg.friend.doc.perModulesData.rpg.atk ?? 0)) / 100))})` : ''}`,
+          `  ${serifs.rpg.status.def} : ${msg.friend.doc.perModulesData.rpg.def ?? 0}${bonus >= 1 ? ` (+${Math.floor(bonus * ((100 + (msg.friend.doc.perModulesData.rpg.def ?? 0)) / 100))})` : ''}`,
           lovep >= 100
             ? `  ${serifs.rpg.status.spd} : ${Math.floor(lovep / 100) + 1}`
             : '',
@@ -793,6 +929,44 @@ export default class extends Module {
 
     return true;
   }
+
+  private getKazutoriRateInfo(userId: string): {
+    rate?: number;
+    rank?: number;
+    total: number;
+  } {
+    const friendDocs = this.ai.friends.find({}) as FriendDoc[];
+    const ranking: { userId: string; rate: number }[] = [];
+    const updatedDocs: FriendDoc[] = [];
+    let selfData: EnsuredKazutoriData | undefined;
+
+    for (const doc of friendDocs) {
+      const { data, updated } = ensureKazutoriData(doc);
+      if (updated) updatedDocs.push(doc);
+      if (doc.userId === userId) {
+        selfData = data;
+      }
+      if (hasKazutoriRateHistory(data)) {
+        ranking.push({ userId: doc.userId, rate: data.rate });
+      }
+    }
+
+    for (const doc of updatedDocs) {
+      this.ai.friends.update(doc);
+    }
+
+    ranking.sort((a, b) =>
+      b.rate === a.rate ? a.userId.localeCompare(b.userId) : b.rate - a.rate,
+    );
+    const rank = findRateRank(ranking, userId);
+
+    return {
+      rate: selfData?.rate,
+      rank,
+      total: ranking.length,
+    };
+  }
+
   @autobind
   private getInventory(msg: Message): boolean {
     if (!msg.text) return false;
@@ -1069,53 +1243,17 @@ export default class extends Module {
 送った事がある絵文字の種類 : **${data.sentReactionsCount}** 種類
 受け取った事がある絵文字の種類 : **${data.receivedReactionsCount}** 種類
 
-よく送る絵文字（累計） :
-${data.sentReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+よく送る絵文字（累計） : 
+${data.sentReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-よく貰う絵文字（累計） :
-${data.receivedReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+よく貰う絵文字（累計） : 
+${data.receivedReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-最近よく送る絵文字 :
-${data.recentlySentReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+最近よく送る絵文字 : 
+${data.recentlySentReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-最近よく貰う絵文字 :
-${data.recentlyReceivedReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+最近よく貰う絵文字 : 
+${data.recentlyReceivedReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 `,
         {
           cw: `${acct(msg.user)} ${msg.friend.name || 'さん'}の絵文字情報（リアクション）`,
@@ -1125,58 +1263,22 @@ ${data.recentlyReceivedReactions
       //リモート
       msg.reply(
         `
-※リモートユーザの為、絵文字がうまく表示されない可能性、正しい情報が表示されない可能性があるのじゃ。
-絵文字がうまく表示されない場合はリモートで表示などのボタンを使用し、${config.instanceName}で確認してほしいのじゃ
+※リモートユーザの為、絵文字がうまく表示されない可能性、正しい情報が表示されない可能性があります。
+絵文字がうまく表示されない場合はリモートで表示などのボタンを使用し、${config.instanceName}にて確認してください。
 
 受け取った事がある絵文字の種類 : **${data.receivedReactionsCount}** 種類
 
-よく送る絵文字（累計） :
-${data.sentReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+よく送る絵文字（累計） : 
+${data.sentReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-よく貰う絵文字（累計） :
-${data.receivedReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+よく貰う絵文字（累計） : 
+${data.receivedReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-最近よく送る絵文字 :
-${data.recentlySentReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+最近よく送る絵文字 : 
+${data.recentlySentReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 
-最近よく貰う絵文字 :
-${data.recentlyReceivedReactions
-  .map(
-    (x, i) =>
-      `第${i + 1}位 (${x.count}回) ${x.name}${
-        x.name.includes('@')
-          ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})`
-          : ''
-      }`,
-  )
-  .join('\n')}
+最近よく貰う絵文字 : 
+${data.recentlyReceivedReactions.map((x, i) => `第${i + 1}位 (${x.count}回) ${x.name}${x.name.includes('@') ? ` (${x.name.replace(/^[^@]+@/, '').replace(':', '')})` : ''}`).join('\n')}
 `,
         {
           cw: `${acct(msg.user)} ${msg.friend.name || 'さん'}の絵文字情報（リアクション）`,
@@ -1257,30 +1359,7 @@ ${data.recentlyReceivedReactions
       /[ぁ-んァ-ンヴー]$/.test(x.keyword),
     );
     msg.reply(
-      `\n\`\`\`\n友達の人数 : ${friends.filter((x) => x.love && x.love >= 20).length}\n親友の人数 : ${
-        friends.filter((x) => x.love && x.love >= 100).length
-      }\n合計好感度 : ☆${
-        Math.floor(
-          friends
-            .filter((x) => x.love)
-            .reduce((acc, cur) => acc + (cur.love ?? 0), 0) /
-            (10 / 7),
-        ) / 10
-      }\n\n数取り回数 : ${friends
-        .filter((x) => x.kazutoriData?.winCount)
-        .reduce(
-          (acc, cur) => acc + (cur.kazutoriData?.winCount ?? 0),
-          0,
-        )}\nメダル発行数 : ${friends
-        .filter((x) => x.kazutoriData?.medal)
-        .reduce(
-          (acc, cur) => acc + (cur.kazutoriData?.medal ?? 0),
-          0,
-        )}\n\n現在の機嫌 : ${Math.floor(
-        this.ai.activeFactor * 100,
-      )}%\n\n覚えた言葉数 : ${words.length}\nバナナスに使う言葉数 : ${baWords.length - specialWords.length} + ${
-        specialWords.length
-      }\n英語以外で終わる言葉数 : ${jpWords.length}\n英語・漢字以外で終わる言葉数 : ${hirakanaWords.length}\n\`\`\``,
+      `\n\`\`\`\n友達の人数 : ${friends.filter((x) => x.love && x.love >= 20).length}\n親友の人数 : ${friends.filter((x) => x.love && x.love >= 100).length}\n合計好感度 : ☆${Math.floor(friends.filter((x) => x.love).reduce((acc, cur) => acc + (cur.love ?? 0), 0) / (10 / 7)) / 10}\n\n数取り回数 : ${friends.filter((x) => x.kazutoriData?.winCount).reduce((acc, cur) => acc + (cur.kazutoriData?.winCount ?? 0), 0)}\nトロフィー発行数 : ${friends.filter((x) => x.kazutoriData?.medal).reduce((acc, cur) => acc + (cur.kazutoriData?.medal ?? 0), 0)}\n\n現在の機嫌 : ${Math.floor(this.ai.activeFactor * 100)}%\n\n覚えた言葉数 : ${words.length}\nバナナスに使う言葉数 : ${baWords.length - specialWords.length} + ${specialWords.length}\n英語以外で終わる言葉数 : ${jpWords.length}\n英語・漢字以外で終わる言葉数 : ${hirakanaWords.length}\n\`\`\``,
       {
         immediate: false,
       },

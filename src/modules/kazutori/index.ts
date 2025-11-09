@@ -7,6 +7,13 @@ import { User } from '@/misskey/user';
 import { acct } from '@/utils/acct';
 import { genItem } from '@/vocabulary';
 import config from '@/config';
+import type { FriendDoc } from '@/friend';
+import {
+  ensureKazutoriData,
+  findRateRank,
+  hasKazutoriRateHistory,
+} from './rate';
+import type { EnsuredKazutoriData } from './rate';
 var Decimal = require('break_infinity.js');
 
 type Game = {
@@ -28,12 +35,14 @@ type Game = {
   triggerUserId: string | undefined;
   publicOnly: boolean;
   replyKey: string[];
+  limitMinutes: number;
 };
 
 export default class extends Module {
   public readonly name = 'kazutori';
 
   private games: loki.Collection<Game>;
+  private lastHourlyRenote: { key: string; postId: string } | null = null;
 
   @autobind
   public install() {
@@ -41,6 +50,7 @@ export default class extends Module {
 
     this.crawleGameEnd();
     setInterval(this.crawleGameEnd, 1000);
+    setInterval(this.renoteOnSpecificHours, 1000);
     setInterval(
       () => {
         const hours = new Date().getHours();
@@ -51,13 +61,58 @@ export default class extends Module {
           this.start();
         }
       },
-      1000 * 60 * 37,
+      1000 * 30 * 37,
     );
 
     return {
       mentionHook: this.mentionHook,
       contextHook: this.contextHook,
     };
+  }
+
+  @autobind
+  private async renoteOnSpecificHours() {
+    const game = this.games.findOne({
+      isEnded: false,
+    });
+
+    if (game == null) return;
+
+    const now = new Date();
+    const hour = now.getHours();
+
+    if (![8, 10, 12, 14, 16, 18, 20, 22].includes(hour)) return;
+
+    if (now.getMinutes() !== 0) return;
+
+    const finishedAt =
+      game.finishedAt ?? game.startedAt + 1000 * 60 * (game.limitMinutes ?? 10);
+    const remaining = finishedAt - Date.now();
+    const threshold = (10 * 60 + 10) * 1000;
+
+    if (remaining < threshold) return;
+
+    const key = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${hour}`;
+
+    if (
+      this.lastHourlyRenote &&
+      this.lastHourlyRenote.key === key &&
+      this.lastHourlyRenote.postId === game.postId
+    ) {
+      return;
+    }
+
+    this.lastHourlyRenote = { key, postId: game.postId };
+
+    try {
+      await this.ai.post({
+        renoteId: game.postId,
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      this.log(`Failed to renote kazutori post on specific hour: ${reason}`);
+      this.lastHourlyRenote = null;
+    }
   }
 
   @autobind
@@ -234,6 +289,7 @@ export default class extends Module {
       isEnded: false,
       startedAt: Date.now(),
       finishedAt: Date.now() + 1000 * 60 * limitMinutes,
+      limitMinutes,
       winRank,
       postId: post.id,
       maxnum: maxnum,
@@ -297,15 +353,15 @@ export default class extends Module {
       // トリガー者が管理人でない かつ クールタイムが開けていない場合
       if (
         (msg.user.host || msg.user.username !== config.master) &&
-        Date.now() - recentGame.startedAt < 1000 * 60 * 60 * cth
+        Date.now() - recentGame.startedAt < 1000 * 60 * 30 * cth
       ) {
         const ct = Math.ceil(
-          60 * cth - (Date.now() - recentGame.startedAt) / (1000 * 60),
+          30 * cth - (Date.now() - recentGame.startedAt) / (1000 * 30),
         );
         msg.reply(
           serifs.kazutori.matakondo(
             ct,
-            Math.ceil((recentGame.startedAt + 1000 * 60 * 60 * cth) / 1000),
+            Math.ceil((recentGame.startedAt + 1000 * 30 * 30 * cth) / 1000),
           ),
         );
         return {
@@ -427,11 +483,13 @@ export default class extends Module {
 
     let num: typeof Decimal;
 
+    const normalizedText = msg.extractedText.replace(/[０-９]/g, (m) =>
+      '０１２３４５６７８９'.indexOf(m).toString(),
+    );
+
     // 数字が含まれていない
-    const match = msg.extractedText
-      .replace(/[０-９]/g, (m) => '０１２３４５６７８９'.indexOf(m).toString())
-      .match(/[0-9]+|∞/);
-    if (match == null) {
+    const matches = normalizedText.match(/[0-9]+|∞/g);
+    if (matches == null) {
       msg
         .reply('リプライの中に数字が見つからなかったのじゃ！')
         .then((reply) => {
@@ -444,11 +502,28 @@ export default class extends Module {
       };
     }
 
-    if (match[0] === '∞') {
+    if (matches.length >= 2) {
+      msg
+        .reply(
+          '数取りでは2個以上の数値に投票する事は出来ないのじゃ。小数を指定した場合は、整数で指定するようにしてほしいのじゃ。',
+        )
+        .then((reply) => {
+          game.replyKey.push(msg.userId);
+          this.games.update(game);
+          this.subscribeReply(msg.userId, reply.id);
+        });
+      return {
+        reaction: 'confused',
+      };
+    }
+
+    const match = matches[0];
+
+    if (match === '∞') {
       num = new Decimal(Decimal.NUMBER_MAX_VALUE);
     } else {
       // 先頭のゼロを除去
-      const numStr = match[0].replace(/^0+/, '') || '0';
+      const numStr = match.replace(/^0+/, '') || '0';
 
       //21桁以上の場合
       if (numStr.length > 20) {
@@ -549,18 +624,8 @@ export default class extends Module {
     this.games.update(game);
 
     if (msg.friend?.doc) {
-      if (msg.friend.doc.kazutoriData) {
-        msg.friend.doc.kazutoriData.playCount += 1;
-        msg.friend.doc.kazutoriData.rate =
-          (msg.friend.doc.kazutoriData.rate ?? 0) - 1;
-      } else {
-        msg.friend.doc.kazutoriData = {
-          winCount: 0,
-          playCount: 1,
-          rate: -1,
-          inventory: [],
-        };
-      }
+      const { data } = ensureKazutoriData(msg.friend.doc);
+      data.playCount += 1;
       msg.friend.save();
     }
 
@@ -611,9 +676,8 @@ export default class extends Module {
       game.votes.forEach((x) => {
         const friend = this.ai.lookupFriend(x.user.id);
         if (friend) {
-          friend.doc.kazutoriData.playCount -= 1;
-          friend.doc.kazutoriData.rate =
-            (friend.doc.kazutoriData.rate ?? 0) + 1;
+          const { data } = ensureKazutoriData(friend.doc);
+          data.playCount = Math.max((data.playCount ?? 0) - 1, 0);
           friend.save();
         }
       });
@@ -793,7 +857,7 @@ export default class extends Module {
       reverseWinner = winner;
     }
 
-    if (!medal) {
+    if (!medal && config.kazutoriWinDiffReverseEnabled) {
       const winDiff =
         Math.min(winner?.winCount ?? 0, 50) -
         Math.min(reverseWinner?.winCount ?? 0, 50);
@@ -831,33 +895,484 @@ export default class extends Module {
 
     if (now.getMonth() === 3 && now.getDate() === 1) reverse = !reverse;
 
+    const participants = new Set(game.votes.map((vote) => vote.user.id));
+    const calculatedLimitMinutes =
+      game.limitMinutes ??
+      Math.max(Math.round((game.finishedAt - game.startedAt) / (1000 * 60)), 1);
+    if (game.limitMinutes == null) {
+      game.limitMinutes = calculatedLimitMinutes;
+      this.games.update(game);
+    }
+
     const winnerFriend = winner?.id ? this.ai.lookupFriend(winner.id) : null;
     const name = winnerFriend ? winnerFriend.name : null;
+    let ratingInfo: {
+      beforeRate: number;
+      afterRate: number;
+      beforeRank?: number;
+      afterRank?: number;
+    } | null = null;
 
-    if (winnerFriend) {
-      if (winnerFriend.doc.kazutoriData.winCount != null) {
-        winnerFriend.doc.kazutoriData.winCount += 1;
-        winnerFriend.doc.kazutoriData.rate += game.votes.length;
+    const friendDocs = this.ai.friends.find({}) as FriendDoc[];
+    const friendDocMap = new Map<string, FriendDoc>();
+    const rankingBefore: { userId: string; rate: number }[] = [];
+
+    const originalWinRank = game.winRank ?? 1;
+    const totalParticipants = game.votes.length;
+    const shouldAdjustByRank = totalParticipants >= 3;
+    type VoteInfo = {
+      user: Game['votes'][number]['user'];
+      number: typeof Decimal;
+      index: number;
+    };
+    const voteInfos: VoteInfo[] = game.votes.map((vote, index) => ({
+      user: vote.user,
+      number: vote.number as typeof Decimal,
+      index,
+    }));
+    const numberToVotes = new Map<string, VoteInfo[]>();
+    for (const info of voteInfos) {
+      const key = info.number.toString();
+      const list = numberToVotes.get(key);
+      if (list) {
+        list.push(info);
       } else {
-        winnerFriend.doc.kazutoriData = {
-          winCount: 1,
-          playCount: 1,
-          rate: game.votes.length,
-          inventory: [],
-        };
+        numberToVotes.set(key, [info]);
       }
-      if (medal && winnerFriend.doc.kazutoriData.winCount > 50) {
-        winnerFriend.doc.kazutoriData.medal =
-          (winnerFriend.doc.kazutoriData.medal || 0) + 1;
-      }
-      if (winnerFriend.doc.kazutoriData.inventory) {
-        if (winnerFriend.doc.kazutoriData.inventory.length >= 50)
-          winnerFriend.doc.kazutoriData.inventory.shift();
-        winnerFriend.doc.kazutoriData.inventory.push(item);
+    }
+    const uniqueVotes: VoteInfo[] = [];
+    const duplicateVotes: VoteInfo[] = [];
+    for (const [, list] of numberToVotes) {
+      if (list.length === 1) {
+        uniqueVotes.push(list[0]);
       } else {
-        winnerFriend.doc.kazutoriData.inventory = [item];
+        duplicateVotes.push(...list);
+      }
+    }
+
+    const compareDecimalAsc = (a: typeof Decimal, b: typeof Decimal) => {
+      if (a.lessThan(b)) return -1;
+      if (a.greaterThan(b)) return 1;
+      return 0;
+    };
+    const compareDecimalDesc = (a: typeof Decimal, b: typeof Decimal) =>
+      -compareDecimalAsc(a, b);
+    const decimalAbs = (value: typeof Decimal) => {
+      if (value.lessThan(Decimal.ZERO)) {
+        return value.times(-1);
+      }
+      return value;
+    };
+    const buildPlacementOrder = (
+      sorted: VoteInfo[],
+      winnerIndex: number | null,
+    ) => {
+      if (
+        winnerIndex == null ||
+        winnerIndex < 0 ||
+        winnerIndex >= sorted.length
+      ) {
+        return [...sorted];
+      }
+      const ordered: VoteInfo[] = [];
+      ordered.push(sorted[winnerIndex]);
+      for (let offset = 1; ordered.length < sorted.length; offset++) {
+        const lowerIndex = winnerIndex + offset;
+        const higherIndex = winnerIndex - offset;
+        if (lowerIndex < sorted.length) {
+          ordered.push(sorted[lowerIndex]);
+        }
+        if (higherIndex >= 0) {
+          ordered.push(sorted[higherIndex]);
+        }
+      }
+      return ordered;
+    };
+
+    let normalPlacements: VoteInfo[] = [];
+    let reversePlacements: VoteInfo[] = [];
+    let normalWinnerNumber: typeof Decimal | null = null;
+    let reverseWinnerNumber: typeof Decimal | null = null;
+
+    if (shouldAdjustByRank && uniqueVotes.length > 0) {
+      if (originalWinRank === -1) {
+        const target =
+          typeof med !== 'undefined' && med !== -1
+            ? (med as typeof Decimal)
+            : null;
+        if (target) {
+          normalPlacements = [...uniqueVotes].sort((a, b) => {
+            const diffA = decimalAbs(a.number.minus(target));
+            const diffB = decimalAbs(b.number.minus(target));
+            const diffCompare = compareDecimalAsc(diffA, diffB);
+            if (diffCompare !== 0) return diffCompare;
+            return a.index - b.index;
+          });
+        } else {
+          normalPlacements = [...uniqueVotes];
+        }
+        normalWinnerNumber =
+          normalPlacements.length > 0 ? normalPlacements[0].number : null;
+        reversePlacements = [];
+        reverseWinnerNumber = null;
+      } else {
+        const sortedDesc = [...uniqueVotes].sort((a, b) =>
+          compareDecimalDesc(a.number, b.number),
+        );
+        const normalWinnerIndex =
+          originalWinRank > 0 && originalWinRank <= sortedDesc.length
+            ? originalWinRank - 1
+            : null;
+        normalPlacements = buildPlacementOrder(sortedDesc, normalWinnerIndex);
+        normalWinnerNumber =
+          normalWinnerIndex != null
+            ? sortedDesc[normalWinnerIndex].number
+            : normalPlacements.length > 0
+              ? normalPlacements[0].number
+              : null;
+
+        const sortedAsc = [...uniqueVotes].sort((a, b) =>
+          compareDecimalAsc(a.number, b.number),
+        );
+        const reverseWinnerIndex =
+          originalWinRank > 0 && originalWinRank <= sortedAsc.length
+            ? originalWinRank - 1
+            : null;
+        reversePlacements = buildPlacementOrder(sortedAsc, reverseWinnerIndex);
+        reverseWinnerNumber =
+          reverseWinnerIndex != null
+            ? sortedAsc[reverseWinnerIndex].number
+            : reversePlacements.length > 0
+              ? reversePlacements[0].number
+              : null;
+      }
+    }
+
+    const actualWinnerId = winner?.id ?? null;
+    const addedUsers = new Set<string>();
+    const finalRankOrder: VoteInfo[] = [];
+    const pushRankCandidate = (info: VoteInfo | undefined) => {
+      if (!info) return;
+      const userId = info.user.id;
+      if (userId === actualWinnerId) return;
+      if (addedUsers.has(userId)) return;
+      finalRankOrder.push(info);
+      addedUsers.add(userId);
+    };
+
+    if (shouldAdjustByRank && uniqueVotes.length > 0) {
+      const maxIterations =
+        Math.max(normalPlacements.length, reversePlacements.length) * 2 + 2;
+      for (let step = 0; step < maxIterations; step++) {
+        if (step === 0) {
+          if (reversePlacements.length > 0)
+            pushRankCandidate(reversePlacements[0]);
+        } else if (step % 2 === 1) {
+          const normalIndex = (step + 1) / 2;
+          if (normalIndex < normalPlacements.length) {
+            pushRankCandidate(normalPlacements[normalIndex]);
+          }
+        } else {
+          const reverseIndex = step / 2;
+          if (reverseIndex < reversePlacements.length) {
+            pushRankCandidate(reversePlacements[reverseIndex]);
+          }
+        }
+      }
+
+      for (const info of normalPlacements) pushRankCandidate(info);
+      for (const info of reversePlacements) pushRankCandidate(info);
+    }
+
+    const buildProximityGroups = (target: typeof Decimal | null) => {
+      if (target == null) return [] as VoteInfo[][];
+      const diffMap = new Map<
+        string,
+        { diff: typeof Decimal; votes: VoteInfo[] }
+      >();
+      const groups: { diff: typeof Decimal; votes: VoteInfo[] }[] = [];
+      for (const info of duplicateVotes) {
+        const diff = decimalAbs(info.number.minus(target));
+        const key = diff.toString();
+        let entry = diffMap.get(key);
+        if (!entry) {
+          entry = { diff, votes: [] };
+          diffMap.set(key, entry);
+          groups.push(entry);
+        }
+        entry.votes.push(info);
+      }
+      for (const entry of groups) {
+        entry.votes.sort((a, b) => a.index - b.index);
+      }
+      groups.sort((a, b) => compareDecimalAsc(a.diff, b.diff));
+      return groups.map((entry) => entry.votes);
+    };
+
+    const invalidRankOrder: VoteInfo[] = [];
+    const pushInvalidCandidate = (info: VoteInfo | undefined) => {
+      if (!info) return;
+      const userId = info.user.id;
+      if (userId === actualWinnerId) return;
+      if (addedUsers.has(userId)) return;
+      invalidRankOrder.push(info);
+      addedUsers.add(userId);
+    };
+
+    if (shouldAdjustByRank && duplicateVotes.length > 0) {
+      const normalGroups = buildProximityGroups(normalWinnerNumber);
+      const reverseGroups = buildProximityGroups(reverseWinnerNumber);
+      const groupCount = Math.max(normalGroups.length, reverseGroups.length);
+      for (let i = 0; i < groupCount; i++) {
+        if (i < normalGroups.length) {
+          for (const info of normalGroups[i]) pushInvalidCandidate(info);
+        }
+        if (i < reverseGroups.length) {
+          for (const info of reverseGroups[i]) pushInvalidCandidate(info);
+        }
+      }
+    }
+
+    const loserRankMap = new Map<string, number>();
+    if (shouldAdjustByRank) {
+      let currentRank = 2;
+      for (const info of finalRankOrder) {
+        if (info.user.id === actualWinnerId) continue;
+        if (!loserRankMap.has(info.user.id)) {
+          loserRankMap.set(info.user.id, currentRank++);
+        }
+      }
+      for (const info of invalidRankOrder) {
+        if (info.user.id === actualWinnerId) continue;
+        if (!loserRankMap.has(info.user.id)) {
+          loserRankMap.set(info.user.id, currentRank++);
+        }
+      }
+      for (const info of voteInfos) {
+        if (info.user.id === actualWinnerId) continue;
+        if (!loserRankMap.has(info.user.id)) {
+          loserRankMap.set(info.user.id, currentRank++);
+        }
+      }
+    }
+
+    for (const doc of friendDocs) {
+      const { data, updated } = ensureKazutoriData(doc);
+      if (updated) this.ai.friends.update(doc);
+      friendDocMap.set(doc.userId, doc);
+      if (hasKazutoriRateHistory(data)) {
+        rankingBefore.push({ userId: doc.userId, rate: data.rate });
+      }
+    }
+
+    const penaltyPoint = Math.max(Math.ceil(calculatedLimitMinutes / 10), 1);
+    const nonParticipantPenalties: {
+      doc: FriendDoc;
+      data: EnsuredKazutoriData;
+      loss: number;
+    }[] = [];
+    let totalBonusFromNonParticipants = 0;
+
+    for (const doc of friendDocs) {
+      if (winnerFriend && doc.userId === winnerFriend.userId) continue;
+      if (participants.has(doc.userId)) continue;
+      const data = ensureKazutoriData(doc).data;
+      if (data.rate > 1000) {
+        const rateExcess = data.rate - 1000;
+        const increaseSteps = Math.floor(rateExcess / 500);
+        const multiplier = 1 + increaseSteps * 0.5;
+        const calculatedLoss = penaltyPoint * multiplier;
+        const loss = Math.min(Math.ceil(calculatedLoss), rateExcess);
+        if (loss > 0) {
+          data.rate -= loss;
+          data.rateChanged = true;
+          totalBonusFromNonParticipants += loss;
+          nonParticipantPenalties.push({ doc, data, loss });
+        }
+      }
+    }
+
+    const sortedBefore = [...rankingBefore].sort((a, b) =>
+      b.rate === a.rate ? a.userId.localeCompare(b.userId) : b.rate - a.rate,
+    );
+
+    const winnerDoc = winnerFriend
+      ? friendDocMap.get(winnerFriend.userId)
+      : null;
+
+    if (winnerFriend && winnerDoc) {
+      const winnerData = ensureKazutoriData(winnerDoc).data;
+      const beforeRate = winnerData.rate;
+      const beforeRank = findRateRank(sortedBefore, winnerFriend.userId);
+      const baseLossRatio = calculatedLimitMinutes * 0.004;
+      const lossRatio = Math.max(
+        baseLossRatio <= 0.04
+          ? baseLossRatio
+          : 0.04 + (calculatedLimitMinutes - 10) * (1 / 12000),
+        0.02,
+      );
+      let totalBonus = 0;
+
+      for (const vote of game.votes) {
+        if (vote.user.id === winnerFriend.userId) continue;
+        const doc = friendDocMap.get(vote.user.id);
+        if (!doc) continue;
+        const data = ensureKazutoriData(doc).data;
+        const before = data.rate;
+        const loss = Math.max(Math.ceil(before * lossRatio), 1);
+        let adjustedLoss = loss;
+        if (shouldAdjustByRank) {
+          const rank = loserRankMap.get(vote.user.id);
+          if (rank != null && rank >= 2) {
+            const threshold = Math.ceil(totalParticipants / 2);
+            if (threshold >= 2 && rank <= threshold) {
+              let reductionRatio = 0.5;
+              if (threshold > 2) {
+                const progress = (rank - 2) / (threshold - 2);
+                const clamped = Math.min(Math.max(progress, 0), 1);
+                reductionRatio = 0.5 * (1 - clamped);
+              }
+              adjustedLoss = Math.max(
+                Math.ceil(loss * (1 - reductionRatio)),
+                1,
+              );
+            }
+          }
+        }
+        data.rate = Math.max(before - adjustedLoss, 0);
+        if (data.rate !== before) {
+          data.rateChanged = true;
+        }
+        totalBonus += adjustedLoss;
+        this.ai.friends.update(doc);
+      }
+
+      totalBonus += totalBonusFromNonParticipants;
+
+      const winnerBeforeRate = winnerData.rate;
+      winnerData.rate += totalBonus;
+      if (winnerData.rate !== winnerBeforeRate) {
+        winnerData.rateChanged = true;
+      }
+      this.ai.friends.update(winnerDoc);
+
+      const rankingAfter = friendDocs
+        .map((doc) => {
+          const ensured = ensureKazutoriData(doc).data;
+          return hasKazutoriRateHistory(ensured)
+            ? { userId: doc.userId, rate: ensured.rate }
+            : null;
+        })
+        .filter(
+          (record): record is { userId: string; rate: number } =>
+            record != null,
+        );
+      const sortedAfter = [...rankingAfter].sort((a, b) =>
+        b.rate === a.rate ? a.userId.localeCompare(b.userId) : b.rate - a.rate,
+      );
+      const afterRank = findRateRank(sortedAfter, winnerFriend.userId);
+
+      ratingInfo = {
+        beforeRate,
+        afterRate: winnerData.rate,
+        beforeRank,
+        afterRank,
+      };
+
+      const winnerEnsuredData = ensureKazutoriData(winnerFriend.doc).data;
+      winnerEnsuredData.winCount = (winnerEnsuredData.winCount ?? 0) + 1;
+      if (medal && winnerEnsuredData.winCount > 50) {
+        winnerEnsuredData.medal = (winnerEnsuredData.medal || 0) + 1;
+      }
+      if (winnerEnsuredData.inventory) {
+        if (winnerEnsuredData.inventory.length >= 50)
+          winnerEnsuredData.inventory.shift();
+        winnerEnsuredData.inventory.push(item);
+      } else {
+        winnerEnsuredData.inventory = [item];
       }
       winnerFriend.save();
+    } else if (totalBonusFromNonParticipants > 0) {
+      const participantDocs = Array.from(participants)
+        .map((userId) => friendDocMap.get(userId))
+        .filter((doc): doc is FriendDoc => doc != null);
+
+      if (participantDocs.length > 0) {
+        const baseShare = Math.floor(
+          totalBonusFromNonParticipants / participantDocs.length,
+        );
+        let remainder =
+          totalBonusFromNonParticipants - baseShare * participantDocs.length;
+
+        for (const doc of participantDocs) {
+          const data = ensureKazutoriData(doc).data;
+          if (baseShare > 0) {
+            data.rate += baseShare;
+            data.rateChanged = true;
+          }
+          this.ai.friends.update(doc);
+        }
+
+        while (remainder > 0) {
+          const candidates = nonParticipantPenalties.filter(
+            (penalty) => penalty.loss > 0,
+          );
+          if (candidates.length === 0) break;
+
+          const maxLoss = Math.max(
+            ...candidates.map((penalty) => penalty.loss),
+          );
+          let filtered = candidates.filter(
+            (penalty) => penalty.loss === maxLoss,
+          );
+          const minRate = Math.min(
+            ...filtered.map((penalty) => penalty.data.rate),
+          );
+          filtered = filtered.filter(
+            (penalty) => penalty.data.rate === minRate,
+          );
+          const selected =
+            filtered[Math.floor(Math.random() * filtered.length)];
+
+          selected.data.rate += 1;
+          selected.data.rateChanged = true;
+          selected.loss -= 1;
+          this.ai.friends.update(selected.doc);
+          remainder--;
+        }
+      } else {
+        let remainder = totalBonusFromNonParticipants;
+        while (remainder > 0) {
+          const candidates = nonParticipantPenalties.filter(
+            (penalty) => penalty.loss > 0,
+          );
+          if (candidates.length === 0) break;
+          const maxLoss = Math.max(
+            ...candidates.map((penalty) => penalty.loss),
+          );
+          let filtered = candidates.filter(
+            (penalty) => penalty.loss === maxLoss,
+          );
+          const minRate = Math.min(
+            ...filtered.map((penalty) => penalty.data.rate),
+          );
+          filtered = filtered.filter(
+            (penalty) => penalty.data.rate === minRate,
+          );
+          const selected =
+            filtered[Math.floor(Math.random() * filtered.length)];
+
+          selected.data.rate += 1;
+          selected.data.rateChanged = true;
+          selected.loss -= 1;
+          this.ai.friends.update(selected.doc);
+          remainder--;
+        }
+      }
+    }
+
+    for (const penalty of nonParticipantPenalties) {
+      this.ai.friends.update(penalty.doc);
     }
 
     let strmed =
@@ -879,6 +1394,11 @@ export default class extends Module {
     const maxnumText = game.maxnum.equals(Decimal.MAX_VALUE)
       ? '上限なし'
       : game.maxnum.toString();
+    const winnerWinCount = winnerFriend?.doc?.kazutoriData?.winCount ?? 0;
+    const winnerMedalCount =
+      medal && winnerWinCount > 50
+        ? (winnerFriend?.doc?.kazutoriData?.medal ?? 0)
+        : null;
     const text =
       (game.winRank > 0
         ? game.winRank === 1
@@ -894,10 +1414,9 @@ export default class extends Module {
             item,
             reverse,
             perfect,
-            winnerFriend?.doc?.kazutoriData?.winCount ?? 0,
-            medal && (winnerFriend?.doc?.kazutoriData?.winCount ?? 0) > 50
-              ? (winnerFriend?.doc?.kazutoriData?.medal ?? 0)
-              : null,
+            winnerWinCount,
+            winnerMedalCount,
+            ratingInfo ?? undefined,
           )
         : serifs.kazutori.finishWithNoWinner(item));
 
