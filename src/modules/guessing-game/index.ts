@@ -69,7 +69,7 @@ export default class extends Module {
       });
 
     return {
-      reaction: ':neofox_heart:',
+      reaction: 'love',
     };
   }
 
@@ -102,7 +102,7 @@ export default class extends Module {
       this.guesses.update(exist);
       this.unsubscribeReply(key);
       return {
-        reaction: ':neofox_heart:',
+        reaction: 'love',
       };
     }
 
@@ -113,13 +113,13 @@ export default class extends Module {
         this.subscribeReply(msg.userId, reply.id);
       });
       return {
-        reaction: ':neofox_think:',
+        reaction: 'hmm',
       };
     }
 
     if (guess.length > 3)
       return {
-        reaction: ':neofox_confused:',
+        reaction: 'confused',
       };
 
     let g = parseInt(guess[0], 10);
@@ -129,6 +129,16 @@ export default class extends Module {
 
     if (g < min) g = min;
     if (g > max) g = max;
+
+    const remainingTries = this.MAX_TRY - exist.tries.length;
+    const candidateCount = max - min - 1;
+
+    if (remainingTries === 1 && candidateCount === 2) {
+      const candidates = [min + 1, max - 1];
+      if (candidates.includes(g)) {
+        exist.secret = g;
+      }
+    }
 
     const firsttime = exist.tries.indexOf(g) === -1 && g !== 101 && g !== -1;
 
@@ -196,7 +206,7 @@ export default class extends Module {
 
     this.guesses.update(exist);
     return {
-      reaction: ':neofox_heart:',
+      reaction: 'love',
     };
   }
 }
