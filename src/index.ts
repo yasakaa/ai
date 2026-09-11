@@ -26,12 +26,12 @@ import DiceModule from './modules/dice';
 import ServerModule from './modules/server';
 import FollowModule from './modules/follow';
 import ValentineModule from './modules/valentine';
-import MazeModule from './modules/maze';
+// import MazeModule from './modules/maze';
 import SleepReportModule from './modules/sleep-report';
 import NotingModule from './modules/noting';
 import PollModule from './modules/poll';
 import ReminderModule from './modules/reminder';
-import RpgModule from './modules/rpg';
+// import RpgModule from './modules/rpg';
 import WikipediaModule from './modules/wikipedia';
 import ForecastModule from './modules/forecast';
 
@@ -87,12 +87,12 @@ promiseRetry(
       new BirthdayModule(),
       //new ValentineModule(),
       new KeywordModule(),
-      new MazeModule(),
+      // new MazeModule(),
       new SleepReportModule(),
       new NotingModule(),
       new PollModule(),
       new ReminderModule(),
-      new RpgModule(),
+      // new RpgModule(),
       new WikipediaModule(),
       new ForecastModule(),
     ]);
